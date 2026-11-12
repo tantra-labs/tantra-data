@@ -6,18 +6,18 @@
 
 This repo has no FII (Foreign Institutional Investor) / DII (Domestic Institutional Investor)
 daily net-flow data source at all: no repository port, no reader, no Parquet catalog table. A
-repo-wide grep for `fii`/`dii` across `vyapaar-data` finds zero matches. NSE and SEBI both
+repo-wide grep for `fii`/`dii` across `tantra-data` finds zero matches. NSE and SEBI both
 publish daily provisional and final FII/DII cash-market net buy/sell figures (and, separately,
 F&O net positioning), and this is one of the most direct, widely-watched "institutional big
 money" signals in Indian equity markets — but nothing in this workspace (this repo,
-`vyapaar-market`, or `vyapaar-adapters`) ingests it. The chat agent has no tool that could ever
+`tantra-market`, or `tantra-adapters`) ingests it. The chat agent has no tool that could ever
 ground an answer to "are FIIs buying or selling today?" in real data.
 
 ## Why
 
-`vyapaar-agent/docs/plans/0010-institutional-smart-money-detection-suite.md` scopes an
+`tantra-agent/docs/plans/0010-institutional-smart-money-detection-suite.md` scopes an
 `institutional_flows` chat tool and a composite smart-money strategy signal in
-`vyapaar-strategies` that both need this repo to be the actual data source, per this
+`tantra-strategies` that both need this repo to be the actual data source, per this
 workspace's gap-tracking rule (`.agents/rules/gap-tracking.md` §5): a stub's root cause is
 filed in the provider repo, not silently stubbed in the consumer.
 
@@ -43,17 +43,17 @@ cross-check.
    live disclosure shape (columns, file/feed format, publish time, historical backfill depth)
    against the exchange's current disclosure feed — do not assume a shape or URL without
    checking it live.
-2. Add an `InstitutionalFlowRepository` port under `vyapaar_data/ports/repositories.py`,
+2. Add an `InstitutionalFlowRepository` port under `tantra_data/ports/repositories.py`,
    following the same shape as the existing `MacroSeriesRepository`
-   (`vyapaar_data/ports/repositories.py`, backing `vyapaar_data/service/macro_reader.py`'s
+   (`tantra_data/ports/repositories.py`, backing `tantra_data/service/macro_reader.py`'s
    `PythonMacroReader`).
 3. Add a `PythonInstitutionalFlowReader` (or similarly named) service in
-   `vyapaar_data/service/institutional_flow_reader.py`, returning a Polars `DataFrame` with the
+   `tantra_data/service/institutional_flow_reader.py`, returning a Polars `DataFrame` with the
    target shape above (exact `Decimal` value columns, per this repo's existing readers'
    convention).
 4. Land the ingested data in this repo's existing Parquet catalog pattern (`data/catalog/`), the
    same lakehouse architecture the macro-series, filings, and block/bulk-deal gaps already use.
-5. Once this lands, `vyapaar-agent/docs/plans/0010-institutional-smart-money-detection-suite.md`
+5. Once this lands, `tantra-agent/docs/plans/0010-institutional-smart-money-detection-suite.md`
    Phase 1's `institutional_flows` chat tool can replace its `PortError::unavailable`
    stand-in with a real read.
 

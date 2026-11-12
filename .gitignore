@@ -14,5 +14,5 @@ dist/
 .env
 
 # Local dev market data (see docs/gaps/0004) — not committed: real ingestion lands in
-# vyapaar_data/adapters, not as raw files dropped into this tree.
+# tantra_data/adapters, not as raw files dropped into this tree.
 /data/

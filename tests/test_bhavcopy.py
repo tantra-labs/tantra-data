@@ -7,7 +7,7 @@ from decimal import Decimal
 
 import polars as pl
 
-from vyapaar_data.providers.bhavcopy import parse_bhavcopy, rows_to_bars
+from tantra_data.providers.bhavcopy import parse_bhavcopy, rows_to_bars
 
 SAMPLE = (
     "SYMBOL,SERIES,DATE,PREV_CLOSE,OPEN_PRICE,HIGH_PRICE,LOW_PRICE,LAST_PRICE,CLOSE_PRICE,"

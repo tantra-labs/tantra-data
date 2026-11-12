@@ -1,4 +1,4 @@
-# Plans Index — `vyapaar-data`
+# Plans Index — `tantra-data`
 
 Per workspace rule `.agents/rules/gap-tracking.md`:
 - Gaps are individual features (`docs/gaps/XXXX-*.md`).
@@ -10,17 +10,17 @@ Per workspace rule `.agents/rules/gap-tracking.md`:
 
 | # | Title | Target Scope | Status |
 |---|-------|--------------|--------|
-| [0003](0003-calendar-and-reference-data.md) | Calendar & Reference Data | `vyapaar_data` (calendar) | Open — tracks gaps 0010, 0012 (real calendar source + stub replacement) |
-| [0004](0004-content-and-disclosure-ingestion.md) | Content & Disclosure Ingestion | `vyapaar_data` (block deals, news) | Open — tracks gaps 0005, 0006 |
-| [0005](0005-rust-data-bridge.md) | vyapaar-data → Rust Data Bridge | `vyapaar_data` (filings, corporate actions) + `vyapaar-runtime`/`vyapaar-ffi` | Open — tracks gaps 0007, 0008 |
-| [0006](0006-lakehouse-ingestion-completeness.md) | Lakehouse Ingestion Completeness | `vyapaar_data` (catalog, corporate actions) | Open — tracks gaps 0004, 0009 |
+| [0003](0003-calendar-and-reference-data.md) | Calendar & Reference Data | `tantra_data` (calendar) | Open — tracks gaps 0010, 0012 (real calendar source + stub replacement) |
+| [0004](0004-content-and-disclosure-ingestion.md) | Content & Disclosure Ingestion | `tantra_data` (block deals, news) | Open — tracks gaps 0005, 0006 |
+| [0005](0005-rust-data-bridge.md) | tantra-data → Rust Data Bridge | `tantra_data` (filings, corporate actions) + `tantra-runtime`/`tantra-ffi` | Open — tracks gaps 0007, 0008 |
+| [0006](0006-lakehouse-ingestion-completeness.md) | Lakehouse Ingestion Completeness | `tantra_data` (catalog, corporate actions) | Open — tracks gaps 0004, 0009 |
 
 ## Implemented Plans
 
 | # | Title | Target Scope | Implemented In |
 |---|-------|--------------|----------------|
-| 0001 | Lakehouse & Port Architecture for MCP Quantitative Tools and Screening | `vyapaar-data` | `MarketReader`, `ScreenerReader`, `MacroReader`, `ReferenceExporter` read ports in `vyapaar_data/ports/data_feeds.py`; `LakehouseMarketReader`, `VectorizedScreener`, `InMemoryReferenceExporter`, `PythonMacroReader` in `vyapaar_data/service/`; screener domain types (`ScreenQuery`, `ScreenCondition`, `ComparisonOp`); 16 tests in `tests/test_data_feeds.py`. |
-| 0002 | Filings Ingestion, Economic Series Breadth | `vyapaar-data` | Macro series ingestion: `MacroObservation` domain, `DuckDbMacroStore`, `MacroSeriesRepository` port, `PythonMacroReader.get_series` (`tests/test_macro.py`); filings ingestion: `Filing`/`FilingType` domain, `DuckDbFilingsStore`, `FilingsRepository`/`FilingsReader` ports, `LakehouseFilingsReader` (`tests/test_filings.py`). Both gaps 0002 and 0003 closed. 18 new tests total. |
+| 0001 | Lakehouse & Port Architecture for MCP Quantitative Tools and Screening | `tantra-data` | `MarketReader`, `ScreenerReader`, `MacroReader`, `ReferenceExporter` read ports in `tantra_data/ports/data_feeds.py`; `LakehouseMarketReader`, `VectorizedScreener`, `InMemoryReferenceExporter`, `PythonMacroReader` in `tantra_data/service/`; screener domain types (`ScreenQuery`, `ScreenCondition`, `ComparisonOp`); 16 tests in `tests/test_data_feeds.py`. |
+| 0002 | Filings Ingestion, Economic Series Breadth | `tantra-data` | Macro series ingestion: `MacroObservation` domain, `DuckDbMacroStore`, `MacroSeriesRepository` port, `PythonMacroReader.get_series` (`tests/test_macro.py`); filings ingestion: `Filing`/`FilingType` domain, `DuckDbFilingsStore`, `FilingsRepository`/`FilingsReader` ports, `LakehouseFilingsReader` (`tests/test_filings.py`). Both gaps 0002 and 0003 closed. 18 new tests total. |
 
 ## Roadmap Dismantling Note
 

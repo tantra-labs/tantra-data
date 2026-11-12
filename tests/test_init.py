@@ -1,5 +1,5 @@
-def test_vyapaar_data_import():
-    import vyapaar_data
+def test_tantra_data_import():
+    import tantra_data
 
-    assert vyapaar_data.__version__ == "0.1.0"
-    assert vyapaar_data.VyapaarDataService is not None
+    assert tantra_data.__version__ == "0.1.0"
+    assert tantra_data.TantraDataService is not None

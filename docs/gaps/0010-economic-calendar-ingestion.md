@@ -7,15 +7,15 @@
 The calendar **reader, port, and storage are implemented**, but they are backed by
 bundled, hardcoded placeholder events rather than a live external source:
 
-- `vyapaar_data/domain/calendar.py::CalendarEvent` — the calendar domain value object
+- `tantra_data/domain/calendar.py::CalendarEvent` — the calendar domain value object
   (scheduled datetime, country/currency, category, event name, impact level,
   actual/forecast/prior, period label, affected instrument).
-- `vyapaar_data/ports/repositories.py::CalendarRepository` and
-  `vyapaar_data/ports/data_feeds.py::CalendarReader` — storage and read ports.
-- `vyapaar_data/adapters/duckdb_store.py::DuckDbCalendarStore` — DuckDB storage adapter.
-- `vyapaar_data/service/calendar_reader.py::LakehouseCalendarReader` — read service
+- `tantra_data/ports/repositories.py::CalendarRepository` and
+  `tantra_data/ports/data_feeds.py::CalendarReader` — storage and read ports.
+- `tantra_data/adapters/duckdb_store.py::DuckDbCalendarStore` — DuckDB storage adapter.
+- `tantra_data/service/calendar_reader.py::LakehouseCalendarReader` — read service
   returning exact-`Decimal` Polars frames.
-- `vyapaar_data/providers/calendar.py::stubbed_calendar_rows()` — 7 illustrative
+- `tantra_data/providers/calendar.py::stubbed_calendar_rows()` — 7 illustrative
   `CalendarRow`s reverse-engineered from the vela.luxalgo.com calendar shape.
 - Tests in `tests/test_calendar.py`.
 
@@ -34,8 +34,8 @@ impact level, and actual/forecast/prior values.
 
 ## Why
 
-`vyapaar-ui-web` is planning a Calendar workspace tab plus a right-dock calendar panel (its
-own `docs/plans/0011-vela-journal-calendar-reports-domain-model.md`), and `vyapaar-runtime`
+`tantra-ui-web` is planning a Calendar workspace tab plus a right-dock calendar panel (its
+own `docs/plans/0011-vela-journal-calendar-reports-domain-model.md`), and `tantra-runtime`
 is planning a `/market-data/calendar` REST endpoint to serve it (its own
 `docs/plans/0003-trade-journal-and-market-reference-rest-endpoints.md`). Both consumers
 need this repo to be the actual data source for calendar events, per this workspace's
@@ -50,5 +50,5 @@ in the provider repo — not stubbed silently in the consuming repo.
    `CalendarRepository`/`DuckDbCalendarStore` (the store side needs no change).
 3. Close [0012](0012-calendar-stubbed-data.md) once the placeholder events are removed.
 
-This gap is a prerequisite for `vyapaar-runtime` plan 0003 Phase 3
+This gap is a prerequisite for `tantra-runtime` plan 0003 Phase 3
 (`/market-data/calendar` REST endpoint).

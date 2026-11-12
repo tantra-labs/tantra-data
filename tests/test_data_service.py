@@ -5,17 +5,17 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 
-from vyapaar_data import VyapaarDataService
-from vyapaar_data.domain.corporate_actions import Split
+from tantra_data import TantraDataService
+from tantra_data.domain.corporate_actions import Split
 
 
 def build_service(
     catalog, corporate_actions_store, fundamentals_store, actions, bars
-) -> VyapaarDataService:
+) -> TantraDataService:
     for action in actions:
         corporate_actions_store.add(action)
     catalog.write_bars("NSE:RELIANCE-EQ", bars)
-    return VyapaarDataService(
+    return TantraDataService(
         corporate_actions=corporate_actions_store,
         fundamentals=fundamentals_store,
         catalog=catalog,

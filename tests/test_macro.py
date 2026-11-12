@@ -7,8 +7,8 @@ from decimal import Decimal
 
 import polars as pl
 
-from vyapaar_data import MacroObservation, PythonMacroReader
-from vyapaar_data.providers.macro import MacroRow, parse_macro, rows_to_observations
+from tantra_data import MacroObservation, PythonMacroReader
+from tantra_data.providers.macro import MacroRow, parse_macro, rows_to_observations
 
 
 def test_macro_store_upsert_and_query(macro_store, sample_macro_rows):

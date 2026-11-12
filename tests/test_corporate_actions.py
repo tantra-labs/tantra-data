@@ -7,7 +7,7 @@ from decimal import Decimal
 
 import pytest
 
-from vyapaar_data.domain.corporate_actions import (
+from tantra_data.domain.corporate_actions import (
     Bonus,
     Dividend,
     Rights,

@@ -9,14 +9,14 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from vyapaar_data import (
+from tantra_data import (
     DuckDbProfileStore,
     LakehouseProfileReader,
     SymbolProfile,
     rows_to_profiles,
     yfinance_available,
 )
-from vyapaar_data.providers.profile import ProfileRow, _map_info
+from tantra_data.providers.profile import ProfileRow, _map_info
 
 
 def test_symbol_profile_validation() -> None:

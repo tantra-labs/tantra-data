@@ -1,4 +1,4 @@
-"""Shared pytest fixtures for the vyapaar-data test suite."""
+"""Shared pytest fixtures for the tantra-data test suite."""
 
 from __future__ import annotations
 
@@ -7,17 +7,17 @@ from datetime import UTC, date, datetime, time
 import polars as pl
 import pytest
 
-from vyapaar_data import (
+from tantra_data import (
     DuckDbCorporateActionsStore,
     DuckDbFilingsStore,
     DuckDbFundamentalsStore,
     DuckDbMacroStore,
     ParquetCatalog,
 )
-from vyapaar_data.domain.corporate_actions import Dividend, Split
-from vyapaar_data.domain.filings import Filing, FilingType
-from vyapaar_data.domain.fundamentals import FundamentalRecord
-from vyapaar_data.domain.macro import MacroObservation
+from tantra_data.domain.corporate_actions import Dividend, Split
+from tantra_data.domain.filings import Filing, FilingType
+from tantra_data.domain.fundamentals import FundamentalRecord
+from tantra_data.domain.macro import MacroObservation
 
 
 def utc(y: int, m: int, d: int, hour: int = 0) -> datetime:

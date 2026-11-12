@@ -30,22 +30,22 @@ overhaul.
 
 ## Open gaps
 
-| [0004](0004-catalog-seeded-from-honba-kao-ad-hoc-copy.md) | `data/catalog/` NSE daily bars seeded via ad-hoc copy from honba-kao, not vyapaar-data's own ingestion pipeline | `data/catalog/1D`, `data/catalog/5M` | [0006](../plans/0006-lakehouse-ingestion-completeness.md) |
-| [0005](0005-block-bulk-deal-disclosure-ingestion.md) | Block & bulk deal disclosure ingestion — no data source, port, or reader exists | `vyapaar_data` (reference) | [0004](../plans/0004-content-and-disclosure-ingestion.md) |
-| [0006](0006-news-ingestion.md) | News article ingestion — no data source, port, or reader exists (blocks chat `news_search` tool) | `vyapaar_data` (reference) | [0004](../plans/0004-content-and-disclosure-ingestion.md) |
-| [0007](0007-filings-rust-bridge.md) | Filings data is Python-side only — no `vyapaar-data` → Rust consumer bridge (blocks chat `filings_search` tool) | `vyapaar_data` (filings) | [0005](../plans/0005-rust-data-bridge.md) |
-| [0008](0008-corporate-actions-rust-bridge.md) | Corporate-actions data is Python-side only — no `vyapaar-data` → Rust consumer bridge (blocks chat `corporate_actions` tool) | `vyapaar_data` (corporate actions) | [0005](../plans/0005-rust-data-bridge.md) |
-| [0009](0009-corporate-actions-ingestion.md) | Corporate-actions DuckDB store has no automatic ingestion — population is manual/test-seeded today | `vyapaar_data` (corporate actions) | [0006](../plans/0006-lakehouse-ingestion-completeness.md) |
-| [0010](0010-economic-calendar-ingestion.md) | Economic/earnings/dividends/splits/IPO calendar ingestion — reader/port/store implemented, real vendor source not selected | `vyapaar_data` (calendar) | [0003](../plans/0003-calendar-and-reference-data.md) |
-| [0012](0012-calendar-stubbed-data.md) | Calendar data stubbed pending external source decision | `vyapaar_data` (calendar) | [0003](../plans/0003-calendar-and-reference-data.md) |
-| [0013](0013-fii-dii-institutional-flow-ingestion.md) | FII/DII daily institutional net-flow ingestion — no data source, port, or reader exists | `vyapaar_data` (reference) | — |
-| [0014](0014-delivery-percentage-ingestion.md) | Delivery percentage / delivery-adjusted volume ingestion — no data source, port, reader, or DTO field exists | `vyapaar_data` (reference) | — |
+| [0004](0004-catalog-seeded-from-honba-kao-ad-hoc-copy.md) | `data/catalog/` NSE daily bars seeded via ad-hoc copy from honba-kao, not tantra-data's own ingestion pipeline | `data/catalog/1D`, `data/catalog/5M` | [0006](../plans/0006-lakehouse-ingestion-completeness.md) |
+| [0005](0005-block-bulk-deal-disclosure-ingestion.md) | Block & bulk deal disclosure ingestion — no data source, port, or reader exists | `tantra_data` (reference) | [0004](../plans/0004-content-and-disclosure-ingestion.md) |
+| [0006](0006-news-ingestion.md) | News article ingestion — no data source, port, or reader exists (blocks chat `news_search` tool) | `tantra_data` (reference) | [0004](../plans/0004-content-and-disclosure-ingestion.md) |
+| [0007](0007-filings-rust-bridge.md) | Filings data is Python-side only — no `tantra-data` → Rust consumer bridge (blocks chat `filings_search` tool) | `tantra_data` (filings) | [0005](../plans/0005-rust-data-bridge.md) |
+| [0008](0008-corporate-actions-rust-bridge.md) | Corporate-actions data is Python-side only — no `tantra-data` → Rust consumer bridge (blocks chat `corporate_actions` tool) | `tantra_data` (corporate actions) | [0005](../plans/0005-rust-data-bridge.md) |
+| [0009](0009-corporate-actions-ingestion.md) | Corporate-actions DuckDB store has no automatic ingestion — population is manual/test-seeded today | `tantra_data` (corporate actions) | [0006](../plans/0006-lakehouse-ingestion-completeness.md) |
+| [0010](0010-economic-calendar-ingestion.md) | Economic/earnings/dividends/splits/IPO calendar ingestion — reader/port/store implemented, real vendor source not selected | `tantra_data` (calendar) | [0003](../plans/0003-calendar-and-reference-data.md) |
+| [0012](0012-calendar-stubbed-data.md) | Calendar data stubbed pending external source decision | `tantra_data` (calendar) | [0003](../plans/0003-calendar-and-reference-data.md) |
+| [0013](0013-fii-dii-institutional-flow-ingestion.md) | FII/DII daily institutional net-flow ingestion — no data source, port, or reader exists | `tantra_data` (reference) | — |
+| [0014](0014-delivery-percentage-ingestion.md) | Delivery percentage / delivery-adjusted volume ingestion — no data source, port, reader, or DTO field exists | `tantra_data` (reference) | — |
 
 ## Closed gaps
 
 | # | Title | Area |
 |---|-------|------|
-| 0001 | Parquet catalog coverage verified for downstream consumers (`vyapaar-runtime`'s `/bars` endpoint, `vyapaar-ui-web`'s Risk tab/sparklines) | `vyapaar_data` (catalog) |
-| 0002 | Macro series ingestion stub (`PythonMacroReader` returns empty) | `vyapaar_data.service.macro_reader` | Closed in `c08710d` (macro series ingestion behind `PythonMacroReader`) |
-| 0003 | Filings ingestion & expanded economic series breadth | `vyapaar-data` (macro + filings) | Closed in `c08710d` (filings ingestion behind `FilingsReader`/`LakehouseFilingsReader`) |
-| 0011 | Company fundamentals / symbol profile ingestion (was `0002-company-fundamentals-symbol-profile.md`; renumbered to fix the 0001–0003 collision) | `vyapaar_data` (profile) | Closed in `261d646` (`SymbolProfile` domain, `ProfileRepository`/`ProfileReader` ports, `DuckDbProfileStore`, `LakehouseProfileReader`, yfinance provider `fetch_symbol_profiles`, tests in `tests/test_profile.py`) |
+| 0001 | Parquet catalog coverage verified for downstream consumers (`tantra-runtime`'s `/bars` endpoint, `tantra-ui-web`'s Risk tab/sparklines) | `tantra_data` (catalog) |
+| 0002 | Macro series ingestion stub (`PythonMacroReader` returns empty) | `tantra_data.service.macro_reader` | Closed in `c08710d` (macro series ingestion behind `PythonMacroReader`) |
+| 0003 | Filings ingestion & expanded economic series breadth | `tantra-data` (macro + filings) | Closed in `c08710d` (filings ingestion behind `FilingsReader`/`LakehouseFilingsReader`) |
+| 0011 | Company fundamentals / symbol profile ingestion (was `0002-company-fundamentals-symbol-profile.md`; renumbered to fix the 0001–0003 collision) | `tantra_data` (profile) | Closed in `261d646` (`SymbolProfile` domain, `ProfileRepository`/`ProfileReader` ports, `DuckDbProfileStore`, `LakehouseProfileReader`, yfinance provider `fetch_symbol_profiles`, tests in `tests/test_profile.py`) |

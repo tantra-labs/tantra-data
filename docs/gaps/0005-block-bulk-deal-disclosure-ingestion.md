@@ -9,15 +9,15 @@ no reader, no Parquet catalog table. A block deal is a single large trade (above
 minimum, negotiated in a separate trading window) and a bulk deal is any single trade on the
 regular order book whose quantity exceeds 0.5% of a company's listed shares; NSE and BSE each
 publish their own daily disclosure for both categories. Right now this workspace's chat agent
-(`vyapaar-runtime`'s `/ws/chat`, backed by `vyapaar-agent-chat-tools`'s market tool catalog) has
+(`tantra-runtime`'s `/ws/chat`, backed by `tantra-agent-chat-tools`'s market tool catalog) has
 no tool that could ever answer a question like "any notable block deals today?" — grounded on
-data, because no reader anywhere in this repo (or `vyapaar-market`, or `vyapaar-adapters`)
+data, because no reader anywhere in this repo (or `tantra-market`, or `tantra-adapters`)
 produces this shape. The LLM currently falls back to answering from its own pretrained knowledge
 with a generic, non-grounded disclaimer instead.
 
 ## Why
 
-`vyapaar-runtime/docs/plans/0004-block-bulk-deal-chat-tool-and-rest-endpoint.md` adds a
+`tantra-runtime/docs/plans/0004-block-bulk-deal-chat-tool-and-rest-endpoint.md` adds a
 `block_deals` method to the chat agent's `MarketReader` port and a `BlockDealsTool`, but both need
 this repo to be the actual data source, per this workspace's gap-tracking rule
 (`.agents/rules/gap-tracking.md` §5): a stub's root cause gets filed in the provider repo, not
@@ -41,17 +41,17 @@ quantity fields must be exact `Decimal`, per this repo's Zero Floats Policy.
 1. Decide the ingestion source(s) (NSE first, BSE second, or both at once) and verify the live
    disclosure shape (columns, file format, publish time, historical backfill availability) against
    the exchange's current disclosure feed — do not assume a shape or URL without checking it live.
-2. Add a `BlockDealsRepository` port under `vyapaar_data/ports/repositories.py`, following the
-   same shape as the existing `MacroSeriesRepository` (`vyapaar_data/ports/repositories.py`,
-   backing `vyapaar_data/service/macro_reader.py`'s `PythonMacroReader`) and
-   `FilingsRepository`/`LakehouseFilingsReader` (`vyapaar_data/service/filings_reader.py`).
+2. Add a `BlockDealsRepository` port under `tantra_data/ports/repositories.py`, following the
+   same shape as the existing `MacroSeriesRepository` (`tantra_data/ports/repositories.py`,
+   backing `tantra_data/service/macro_reader.py`'s `PythonMacroReader`) and
+   `FilingsRepository`/`LakehouseFilingsReader` (`tantra_data/service/filings_reader.py`).
 3. Add a `PythonBlockDealsReader` (or similarly named) service in
-   `vyapaar_data/service/block_deals_reader.py`, returning a Polars `DataFrame` with the target
+   `tantra_data/service/block_deals_reader.py`, returning a Polars `DataFrame` with the target
    shape above (exact `Decimal` price/quantity columns, per this repo's existing readers'
    convention).
 4. Land the ingested data in this repo's existing Parquet catalog pattern (`data/catalog/`), the
    same lakehouse architecture the macro-series and filings gaps already use.
-5. Once this lands, `vyapaar-runtime/docs/plans/0004-block-bulk-deal-chat-tool-and-rest-endpoint.md`
+5. Once this lands, `tantra-runtime/docs/plans/0004-block-bulk-deal-chat-tool-and-rest-endpoint.md`
    Phase 3 can replace its `PortError::unavailable` stand-in with a real read.
 
 No code should be written against this gap document until the ingestion-source decision above is

@@ -1,4 +1,4 @@
-# `vyapaar-data` Agent Guidelines & Architecture Invariants
+# `tantra-data` Agent Guidelines & Architecture Invariants
 
 **Subsystem**: Data (Parquet & DuckDB Lakehouse)
 **Language**: Python + DuckDB
@@ -7,7 +7,7 @@
 ---
 
 ## 1. Role & Architectural Hints
-* `vyapaar-data` manages historical and fundamental data:
+* `tantra-data` manages historical and fundamental data:
   1. **Point-in-Time Data Store**: DuckDB point-in-time as-of joins to eliminate lookahead bias in backtests.
   2. **Corporate Action Adjustment**: Adjusts price and volume series for splits, bonuses, rights issues, and dividend distributions.
   3. **Coverage Ledgers**: Tracks data availability and completeness across scrips and timeframes.

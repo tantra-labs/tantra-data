@@ -6,9 +6,9 @@
 
 This repo has no delivery-quantity or delivery-percentage data source at all: no repository
 port, no reader, no Parquet catalog table, and no such field on any existing DTO. A repo-wide
-grep for `delivery` across `vyapaar-data` finds zero matches; the same is true in
-`vyapaar-agent-chat-tools`'s `MarketBar`/`MarketQuote` DTOs
-(`vyapaar-agent/crates/vyapaar-agent-chat-tools/src/ports/market.rs`), which carry only
+grep for `delivery` across `tantra-data` finds zero matches; the same is true in
+`tantra-agent-chat-tools`'s `MarketBar`/`MarketQuote` DTOs
+(`tantra-agent/crates/tantra-agent-chat-tools/src/ports/market.rs`), which carry only
 `volume: Quantity` — the raw traded quantity, not the NSE Bhavcopy "Deliverable Quantity /
 Traded Quantity" ratio. Delivery percentage is the standard mechanism for distinguishing real
 accumulation/distribution (shares actually changing hands into demat, implying intent to hold)
@@ -18,7 +18,7 @@ has no way to compute it today.
 
 ## Why
 
-`vyapaar-agent/docs/plans/0010-institutional-smart-money-detection-suite.md` scopes a
+`tantra-agent/docs/plans/0010-institutional-smart-money-detection-suite.md` scopes a
 `delivery_analysis` chat tool and uses delivery-adjusted volume as one leg of its composite
 smart-money signal; both need this repo to be the actual data source, per this workspace's
 gap-tracking rule (`.agents/rules/gap-tracking.md` §5).
@@ -41,16 +41,16 @@ against this repo's existing daily-bar catalog on `(instrument, date)`.
 1. Decide the ingestion source (NSE Bhavcopy delivery report first) and verify the live
    disclosure shape (columns, file format, publish time, historical backfill availability)
    against the exchange's current feed — do not assume a shape or URL without checking it live.
-2. Add a `DeliveryRepository` port under `vyapaar_data/ports/repositories.py`, following the
+2. Add a `DeliveryRepository` port under `tantra_data/ports/repositories.py`, following the
    same shape as the existing `MacroSeriesRepository`
-   (`vyapaar_data/ports/repositories.py`).
+   (`tantra_data/ports/repositories.py`).
 3. Add a `PythonDeliveryReader` (or similarly named) service in
-   `vyapaar_data/service/delivery_reader.py`, returning a Polars `DataFrame` with the target
+   `tantra_data/service/delivery_reader.py`, returning a Polars `DataFrame` with the target
    shape above (exact `Decimal` delivery-percentage column, per this repo's existing readers'
    convention).
 4. Land the ingested data in this repo's existing Parquet catalog pattern (`data/catalog/`),
    keyed so it joins against the existing daily-bar catalog on `(instrument, date)`.
-5. Once this lands, `vyapaar-agent/docs/plans/0010-institutional-smart-money-detection-suite.md`
+5. Once this lands, `tantra-agent/docs/plans/0010-institutional-smart-money-detection-suite.md`
    Phase 2's `delivery_analysis` chat tool can replace its `PortError::unavailable`
    stand-in with a real read.
 

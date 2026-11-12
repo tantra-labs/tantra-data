@@ -1,9 +1,9 @@
-# Vyapaar Data (`vyapaar-data`)
+# Tantra Data (`tantra-data`)
 
 **Bounded Context**: Point-in-Time Financial Lakehouse & Corporate Actions (Tier 6A)
 
-`vyapaar-data` is the Python + DuckDB + Polars + PyArrow lakehouse that powers
-look-ahead-bias-free research and backtests for the Vyapaar Labs ecosystem:
+`tantra-data` is the Python + DuckDB + Polars + PyArrow lakehouse that powers
+look-ahead-bias-free research and backtests for the Tantra Labs ecosystem:
 
 - **Corporate actions** — splits, bonuses, dividends, and rights issues as
   self-validating `Decimal` value objects with exact back-adjustment math.
@@ -20,8 +20,8 @@ look-ahead-bias-free research and backtests for the Vyapaar Labs ecosystem:
 ## Layout (4-Zone Clean Package)
 
 ```
-vyapaar-data/
-├── vyapaar_data/          # Zone 1: package (domain / ports / adapters / providers / service)
+tantra-data/
+├── tantra_data/          # Zone 1: package (domain / ports / adapters / providers / service)
 ├── tests/                 # Zone 2: offline test suite (parallel to the package)
 ├── configs/               # Zone 3: catalog / lakehouse configuration templates
 └── docs/                  # Zone 4: architecture & migration guides
@@ -36,14 +36,14 @@ there is no `f32`/`f64` in any financial path.
 ## Quick Start
 
 ```python
-from vyapaar_data import (
+from tantra_data import (
     DuckDbFundamentalsStore,
     DuckDbCorporateActionsStore,
     ParquetCatalog,
-    VyapaarDataService,
+    TantraDataService,
 )
 
-service = VyapaarDataService(
+service = TantraDataService(
     fundamentals=DuckDbFundamentalsStore(":memory:"),
     corporate_actions=DuckDbCorporateActionsStore(":memory:"),
     catalog=ParquetCatalog("data/catalog"),

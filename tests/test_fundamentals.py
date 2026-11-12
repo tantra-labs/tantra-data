@@ -7,7 +7,7 @@ from decimal import Decimal
 
 import pytest
 
-from vyapaar_data.domain.fundamentals import FundamentalRecord
+from tantra_data.domain.fundamentals import FundamentalRecord
 
 
 def test_look_ahead_guard_rejects_early_filing() -> None:

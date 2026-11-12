@@ -10,7 +10,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
-from vyapaar_data.adapters.parquet_catalog import ParquetCatalog, arrow_schema
+from tantra_data.adapters.parquet_catalog import ParquetCatalog, arrow_schema
 
 
 def test_write_and_read_preserves_exact_decimals(catalog, sample_bars) -> None:

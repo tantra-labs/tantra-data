@@ -8,7 +8,7 @@ from decimal import Decimal
 import polars as pl
 import pytest
 
-from vyapaar_data import (
+from tantra_data import (
     ComparisonOp,
     DuckDbMacroStore,
     InMemoryReferenceExporter,
@@ -19,7 +19,7 @@ from vyapaar_data import (
     ScreenValue,
     VectorizedScreener,
 )
-from vyapaar_data.ports.repositories import BAR_SCHEMA
+from tantra_data.ports.repositories import BAR_SCHEMA
 
 
 def build_reader(catalog, data_service=None) -> LakehouseMarketReader:
@@ -252,12 +252,12 @@ def test_reference_exporter_export_and_resolve():
     exporter = InMemoryReferenceExporter()
     frame = pl.DataFrame({"a": [1, 2], "b": [3, 4]})
     uri = exporter.export("screen_1", frame)
-    assert uri == "$vyapaar/ref/screen_1"
+    assert uri == "$tantra/ref/screen_1"
     assert uri in exporter
     resolved = exporter.resolve(uri)
     assert resolved.equals(frame)
     with pytest.raises(KeyError):
-        exporter.resolve("$vyapaar/ref/does-not-exist")
+        exporter.resolve("$tantra/ref/does-not-exist")
 
 
 # --------------------------------------------------------------------------- #
@@ -304,5 +304,5 @@ def test_screener_result_reference_is_export_uri(catalog, sample_bars):
     )
     result = screener.execute_screen(query)
     assert result.reference is not None
-    assert result.reference.startswith("$vyapaar/ref/")
+    assert result.reference.startswith("$tantra/ref/")
     assert exporter.resolve(result.reference).columns == list(BAR_SCHEMA)

@@ -7,7 +7,7 @@
 The calendar reader (`gap 0010`) is implemented using a bundled, hardcoded set of calendar
 events rather than a live external source:
 
-- `vyapaar_data/providers/calendar.py::stubbed_calendar_rows()` returns 7 illustrative
+- `tantra_data/providers/calendar.py::stubbed_calendar_rows()` returns 7 illustrative
   `CalendarRow`s (earnings, dividends, splits, IPO, and macroeconomic events)
   reverse-engineered from the shape described in
   `docs/gaps/0010-economic-calendar-ingestion.md`.
@@ -33,5 +33,5 @@ has data to serve while the upstream decision remains pending, per
 2. Remove `docs/gaps/0012-calendar-stubbed-data.md` and update `docs/gaps/README.md` once
    real ingestion lands.
 
-This gap is a prerequisite for `vyapaar-runtime` plan 0003 Phase 3
+This gap is a prerequisite for `tantra-runtime` plan 0003 Phase 3
 (`/market-data/calendar` REST endpoint).

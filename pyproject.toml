@@ -3,7 +3,7 @@ requires = ["setuptools>=68.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "vyapaar-data"
+name = "tantra-data"
 version = "0.1.0"
 description = "Point-in-time financial data lakehouse: corporate actions, splits, dividends, coverage ledgers, and Parquet catalog for Indian markets."
 readme = "README.md"
@@ -18,7 +18,7 @@ dependencies = [
 
 [project.optional-dependencies]
 native = [
-    "vyapaar>=0.1.0",
+    "tantra>=0.1.0",
 ]
 dev = [
     "pytest>=8.0.0",
@@ -27,10 +27,10 @@ dev = [
 ]
 
 [project.scripts]
-vyapaar-coverage = "vyapaar_data.cli.coverage:main"
+tantra-coverage = "tantra_data.cli.coverage:main"
 
 [tool.setuptools.packages.find]
-include = ["vyapaar_data*"]
+include = ["tantra_data*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

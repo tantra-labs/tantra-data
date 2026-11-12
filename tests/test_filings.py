@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from datetime import date
 
-from vyapaar_data import Filing, FilingType, LakehouseFilingsReader
-from vyapaar_data.providers.filings import FilingRow, parse_filings, rows_to_filings
+from tantra_data import Filing, FilingType, LakehouseFilingsReader
+from tantra_data.providers.filings import FilingRow, parse_filings, rows_to_filings
 
 
 def test_filings_store_upsert_and_query(filings_store, sample_filings):

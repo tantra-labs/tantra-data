@@ -12,7 +12,7 @@ from decimal import Decimal
 
 import polars as pl
 
-from vyapaar_data import (
+from tantra_data import (
     CalendarEvent,
     CalendarReader,
     CalendarRepository,
@@ -21,7 +21,7 @@ from vyapaar_data import (
     rows_to_events,
     stubbed_calendar_rows,
 )
-from vyapaar_data.providers.calendar import parse_calendar
+from tantra_data.providers.calendar import parse_calendar
 
 
 def test_calendar_event_validation() -> None:

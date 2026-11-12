@@ -19,12 +19,12 @@ grounded on real data.
 
 1. Decide the ingestion source(s) (NSE first, BSE second, or both) and verify the live
    disclosure shape against the exchange feed — do not assume a shape or URL.
-2. Add a `BlockDealsRepository` port under `vyapaar_data/ports/repositories.py` and a
-   `BlockDealsReader` port in `vyapaar_data/ports/data_feeds.py`, following the
+2. Add a `BlockDealsRepository` port under `tantra_data/ports/repositories.py` and a
+   `BlockDealsReader` port in `tantra_data/ports/data_feeds.py`, following the
    `MacroSeriesRepository` / `FilingsRepository` precedent.
-3. Add a reader service in `vyapaar_data/service/` returning exact-`Decimal` Polars frames.
+3. Add a reader service in `tantra_data/service/` returning exact-`Decimal` Polars frames.
 4. Land the data in the Parquet catalog pattern (`data/catalog/`).
-5. Unblocks `vyapaar-runtime` plan 0004 Phase 3 (replace `PortError::unavailable` stand-in).
+5. Unblocks `tantra-runtime` plan 0004 Phase 3 (replace `PortError::unavailable` stand-in).
 
 ### Phase B — News ingestion (gap 0006)
 
@@ -33,19 +33,19 @@ grounded on real data.
 2. Add a `NewsRepository` port and a reader service returning article records (id, title,
    source, url, published_at, summary, instrument mentions).
 3. Land the data in the Parquet catalog pattern.
-4. Unblocks `FeedContentReader::news_search` in `vyapaar-runtime` (replace the explicit-error
+4. Unblocks `FeedContentReader::news_search` in `tantra-runtime` (replace the explicit-error
    stand-in).
 
 ## Exit Criteria
 
 - Both readers exist behind ports, return exact-`Decimal` frames, and are tested.
-- `pytest -q`, `ruff check .`, `ruff format --check .`, `mypy vyapaar_data` pass.
+- `pytest -q`, `ruff check .`, `ruff format --check .`, `mypy tantra_data` pass.
 - `docs/gaps/README.md` marks 0005 and 0006 closed with closing commits.
 
 ## Related
 
-- `vyapaar_data/ports/repositories.py` — repository port precedent.
-- `vyapaar_data/service/macro_reader.py`, `vyapaar_data/service/filings_reader.py` — reader
+- `tantra_data/ports/repositories.py` — repository port precedent.
+- `tantra_data/service/macro_reader.py`, `tantra_data/service/filings_reader.py` — reader
   service precedent.
-- `vyapaar-runtime` plan 0004 — block/bulk deal chat tool & REST endpoint.
-- `vyapaar-agent` plan 0006 — `news_search`/`filings_search` chat tools.
+- `tantra-runtime` plan 0004 — block/bulk deal chat tool & REST endpoint.
+- `tantra-agent` plan 0006 — `news_search`/`filings_search` chat tools.
