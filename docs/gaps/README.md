@@ -41,6 +41,7 @@ overhaul.
 | [0013](0013-fii-dii-institutional-flow-ingestion.md) | FII/DII daily institutional net-flow ingestion — no data source, port, or reader exists | `tantra_data` (reference) | — |
 | [0014](0014-delivery-percentage-ingestion.md) | Delivery percentage / delivery-adjusted volume ingestion — no data source, port, reader, or DTO field exists | `tantra_data` (reference) | — |
 | [0015](0015-nse-trading-holiday-provider.md) | NSE trading-holiday provider — tantra-data owns the data (ledger plan 0005 T2.7 decision); runtime `NseTradingCalendar` still seeds its own holiday list | `tantra_data` (calendar) | — |
+| [0016](0016-intraday-option-chain-snapshot-lakehouse.md) | Intraday option-chain snapshot ingestion (OI/ΔOI/IV/delta/gamma) + point-in-time GEX/flip series — no lakehouse store or as-of reader exists (Elephant Edge EE+) | `tantra_data` (derivatives) | — |
 
 ## Closed gaps
 
