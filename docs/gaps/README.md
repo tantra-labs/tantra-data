@@ -40,6 +40,7 @@ overhaul.
 | [0012](0012-calendar-stubbed-data.md) | Calendar data stubbed pending external source decision | `tantra_data` (calendar) | [0003](../plans/0003-calendar-and-reference-data.md) |
 | [0013](0013-fii-dii-institutional-flow-ingestion.md) | FII/DII daily institutional net-flow ingestion — no data source, port, or reader exists | `tantra_data` (reference) | — |
 | [0014](0014-delivery-percentage-ingestion.md) | Delivery percentage / delivery-adjusted volume ingestion — no data source, port, reader, or DTO field exists | `tantra_data` (reference) | — |
+| [0015](0015-nse-trading-holiday-provider.md) | NSE trading-holiday provider — tantra-data owns the data (ledger plan 0005 T2.7 decision); runtime `NseTradingCalendar` still seeds its own holiday list | `tantra_data` (calendar) | — |
 
 ## Closed gaps
 
