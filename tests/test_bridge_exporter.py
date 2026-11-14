@@ -1,6 +1,6 @@
 """Tests for the lakehouse bridge exporter (gaps 0007/0008 Parquet projections)."""
 
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 import pyarrow as pa
@@ -9,10 +9,12 @@ import pyarrow.parquet as pq
 from tantra_data.adapters.block_deals_store import DuckDbBlockDealsStore
 from tantra_data.adapters.duckdb_store import DuckDbCorporateActionsStore
 from tantra_data.adapters.filings_store import DuckDbFilingsStore
+from tantra_data.adapters.news_store import DuckDbNewsStore
 from tantra_data.cli.export_bridge import main
 from tantra_data.domain.block_deals import BlockDeal
 from tantra_data.domain.corporate_actions import Bonus, Dividend, Split, to_record
 from tantra_data.domain.filings import Filing, FilingType
+from tantra_data.domain.news import NewsArticle
 from tantra_data.service.bridge_exporter import LakehouseBridgeExporter
 
 
@@ -302,6 +304,82 @@ def test_block_deals_missing_store_exports_nothing(tmp_path):
     assert not (tmp_path / "catalog" / "block_deals").exists()
 
 
+def test_export_news_groups_by_published_date(tmp_path):
+    store = DuckDbNewsStore(":memory:")
+    store.upsert(
+        NewsArticle(
+            article_id="n1",
+            title="Reliance board meeting",
+            source="moneycontrol",
+            url="https://example.com/reliance-board",
+            published_at=datetime(2026, 1, 5, 10, 30, tzinfo=UTC),
+            summary="Q3 update",
+            instruments=("NSE:RELIANCE-EQ",),
+        )
+    )
+    store.upsert(
+        NewsArticle(
+            article_id="n2",
+            title="TCS results",
+            source="moneycontrol",
+            url="https://example.com/tcs-results",
+            published_at=datetime(2026, 1, 6, 9, 0, tzinfo=UTC),
+            summary=None,
+            instruments=("NSE:TCS-EQ", "NSE:INFY-EQ"),
+        )
+    )
+
+    exporter = LakehouseBridgeExporter(
+        DuckDbFilingsStore(":memory:"),
+        DuckDbCorporateActionsStore(":memory:"),
+        news=store,
+    )
+    try:
+        assert exporter.export_news(tmp_path / "catalog") == 2
+    finally:
+        store.close()
+
+    files = sorted((tmp_path / "catalog" / "news").glob("*.parquet"))
+    assert [f.name for f in files] == ["2026-01-05.parquet", "2026-01-06.parquet"]
+
+    table = pq.read_table(files[0])
+    assert table.column_names == [
+        "published_date",
+        "published_at",
+        "article_id",
+        "title",
+        "source",
+        "url",
+        "summary",
+        "instruments",
+    ]
+    assert table.schema.field("published_date").type == pa.date32()
+    assert table.schema.field("published_at").type == pa.string()
+    assert table.schema.field("summary").type == pa.string()
+
+    assert table.column("published_date").to_pylist() == [date(2026, 1, 5)]
+    assert table.column("published_at").to_pylist() == ["2026-01-05T10:30:00+00:00"]
+    assert table.column("article_id").to_pylist() == ["n1"]
+    assert table.column("title").to_pylist() == ["Reliance board meeting"]
+    assert table.column("source").to_pylist() == ["moneycontrol"]
+    assert table.column("url").to_pylist() == ["https://example.com/reliance-board"]
+    assert table.column("summary").to_pylist() == ["Q3 update"]
+    assert table.column("instruments").to_pylist() == ["NSE:RELIANCE-EQ"]
+
+    other = pq.read_table(files[1])
+    assert other.column("summary").to_pylist() == [None]
+    assert other.column("instruments").to_pylist() == ["NSE:TCS-EQ,NSE:INFY-EQ"]
+
+
+def test_news_missing_store_exports_nothing(tmp_path):
+    exporter = LakehouseBridgeExporter(
+        DuckDbFilingsStore(":memory:"),
+        DuckDbCorporateActionsStore(":memory:"),
+    )
+    assert exporter.export_news(tmp_path / "catalog") == 0
+    assert not (tmp_path / "catalog" / "news").exists()
+
+
 def test_main_cli_exports_all_datasets(tmp_path):
     db = str(tmp_path / "b.duckdb")
     catalog = str(tmp_path / "catalog")
@@ -344,11 +422,24 @@ def test_main_cli_exports_all_datasets(tmp_path):
     )
     deals.close()
 
+    news = DuckDbNewsStore(db)
+    news.upsert(
+        NewsArticle(
+            article_id="n3",
+            title="Infosys results",
+            source="moneycontrol",
+            url="https://example.com/infy-results",
+            published_at=datetime(2026, 5, 4, 9, 30, tzinfo=UTC),
+        )
+    )
+    news.close()
+
     rc = main(["--dataset", "all", "--db", db, "--catalog", catalog])
     assert rc == 0
     assert (tmp_path / "catalog" / "filings" / "2026-05-01.parquet").exists()
     assert (tmp_path / "catalog" / "corporate_actions" / "2026-05-02.parquet").exists()
     assert (tmp_path / "catalog" / "block_deals" / "2026-05-03.parquet").exists()
+    assert (tmp_path / "catalog" / "news" / "2026-05-04.parquet").exists()
 
     rc = main(["--dataset", "block-deals", "--db", db, "--catalog", catalog])
     assert rc == 0

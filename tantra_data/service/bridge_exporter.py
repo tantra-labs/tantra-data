@@ -1,22 +1,22 @@
 """Bridge exporter: machine-readable Parquet projections for the Rust runtime.
 
 Implements the Python-side projection side of the one-bridge design (plan 0005):
-it serializes the existing DuckDB filings, corporate-actions and block/bulk-deal
-stores into per-date Parquet files under ``{root}/catalog/filings/``,
-``{root}/catalog/corporate_actions/`` and ``{root}/catalog/block_deals/`` that
-the Rust runtime (``tantra-runtime-api-rest``) can ingest with its existing
-``arrow``/``parquet`` deps, filtering ``filing_date <= as_of`` /
-``ex_date <= as_of`` for point-in-time semantics.
+it serializes the existing DuckDB filings, corporate-actions, block/bulk-deal
+and news stores into per-date Parquet files under ``{root}/catalog/filings/``,
+``{root}/catalog/corporate_actions/``, ``{root}/catalog/block_deals/`` and
+``{root}/catalog/news/`` that the Rust runtime (``tantra-runtime-api-rest``) can
+ingest with its existing ``arrow``/``parquet`` deps, filtering
+``filing_date <= as_of`` / ``ex_date <= as_of`` for point-in-time semantics.
 
-Covers gaps 0007 (filings), 0008 (corporate actions) and 0005 (block/bulk-deal
-disclosure ingestion). Values keep their exact shapes: prices/ratios are
-preserved as exact ``Decimal`` via ``Decimal128(18, 4)``; no floats are
-introduced anywhere in the projection.
+Covers gaps 0007 (filings), 0008 (corporate actions), 0005 (block/bulk-deal
+disclosure ingestion) and 0006 (news ingestion). Values keep their exact
+shapes: prices/ratios are preserved as exact ``Decimal`` via
+``Decimal128(18, 4)``; no floats are introduced anywhere in the projection.
 """
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import UTC, date
 from pathlib import Path
 from typing import Protocol
 
@@ -30,6 +30,7 @@ from tantra_data.domain.corporate_actions import (
     to_record,
 )
 from tantra_data.domain.filings import Filing, FilingType
+from tantra_data.domain.news import NewsArticle
 
 __all__ = ["LakehouseBridgeExporter"]
 
@@ -73,6 +74,20 @@ class BlockDealsRepository(Protocol):
     def close(self) -> None: ...
 
 
+class NewsRepository(Protocol):
+    """Structural interface for the news store consumed by the bridge."""
+
+    def query(
+        self,
+        instrument: str | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        query: str | None = None,
+    ) -> list[NewsArticle]: ...
+
+    def close(self) -> None: ...
+
+
 class LakehouseBridgeExporter:
     """Writes one Parquet projection file per date for the bridge datasets."""
 
@@ -81,10 +96,12 @@ class LakehouseBridgeExporter:
         filings: FilingsRepository,
         corporate_actions: CorporateActionsRepository,
         block_deals: BlockDealsRepository | None = None,
+        news: NewsRepository | None = None,
     ) -> None:
         self._filings = filings
         self._corporate_actions = corporate_actions
         self._block_deals = block_deals
+        self._news = news
 
     def export_filings(self, root: str | Path) -> int:
         """Write ``{root}/catalog/filings/<filing_date>.parquet`` per filing date.
@@ -182,6 +199,46 @@ class LakehouseBridgeExporter:
                 }
             )
             path = root / "block_deals" / f"{trade_date.isoformat()}.parquet"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            pq.write_table(table, path, version="2.6")
+            count += 1
+        return count
+
+    def export_news(self, root: str | Path) -> int:
+        """Write ``{root}/catalog/news/<published_date>.parquet`` per publication date.
+
+        Returns the number of files written. Existing files are overwritten.
+        Returns 0 when no news store is configured.
+        """
+        if self._news is None:
+            return 0
+        root = Path(root)
+        articles = self._news.query()
+        by_date: dict[date, list[NewsArticle]] = {}
+        for article in articles:
+            by_date.setdefault(article.published_at.date(), []).append(article)
+        count = 0
+        for published_date, day_articles in sorted(by_date.items()):
+            table = pa.Table.from_pydict(
+                {
+                    "published_date": pa.array(
+                        [a.published_at.date() for a in day_articles], type=pa.date32()
+                    ),
+                    "published_at": pa.array(
+                        [a.published_at.astimezone(UTC).isoformat() for a in day_articles],
+                        type=pa.string(),
+                    ),
+                    "article_id": pa.array([a.article_id for a in day_articles], type=pa.string()),
+                    "title": pa.array([a.title for a in day_articles], type=pa.string()),
+                    "source": pa.array([a.source for a in day_articles], type=pa.string()),
+                    "url": pa.array([a.url for a in day_articles], type=pa.string()),
+                    "summary": pa.array([a.summary for a in day_articles], type=pa.string()),
+                    "instruments": pa.array(
+                        [",".join(a.instruments) for a in day_articles], type=pa.string()
+                    ),
+                }
+            )
+            path = root / "news" / f"{published_date.isoformat()}.parquet"
             path.parent.mkdir(parents=True, exist_ok=True)
             pq.write_table(table, path, version="2.6")
             count += 1
