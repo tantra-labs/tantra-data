@@ -2,6 +2,11 @@
 
 ## Phase / Slice Status
 * **Tier 6A (COMPLETE)**: Implemented Point-in-Time Financial Lakehouse bounded context.
+* **Bridge exporter (T7.2, 2026-11-14)**: `LakehouseBridgeExporter.export_block_deals` writes
+  `{root}/catalog/block_deals/<trade_date>.parquet` (decimal128(18,4)) from the
+  `DuckDbBlockDealsStore`; CLI `--dataset block-deals|all`; gap 0005 closed upstream. The Rust
+  bridge (`tantra-market-store::BlockDealsProjectionReader` + `tantra-runtime-api-rest`
+  `/market-data/block-deals`) consumes it.
 * **Docs overhaul (2026-11-12)**: the historical `docs/roadmap/` was dismantled into
   `docs/design/`, `docs/gaps/`, `docs/plans/` and the whole set rewritten to match the source.
   - Design: `architecture.md` now inventories the actual 7-domain / 7-reader / 7-store /
