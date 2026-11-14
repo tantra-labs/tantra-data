@@ -6,9 +6,11 @@ from decimal import Decimal
 import pyarrow as pa
 import pyarrow.parquet as pq
 
+from tantra_data.adapters.block_deals_store import DuckDbBlockDealsStore
 from tantra_data.adapters.duckdb_store import DuckDbCorporateActionsStore
 from tantra_data.adapters.filings_store import DuckDbFilingsStore
 from tantra_data.cli.export_bridge import main
+from tantra_data.domain.block_deals import BlockDeal
 from tantra_data.domain.corporate_actions import Bonus, Dividend, Split, to_record
 from tantra_data.domain.filings import Filing, FilingType
 from tantra_data.service.bridge_exporter import LakehouseBridgeExporter
@@ -44,9 +46,7 @@ def test_export_filings_writes_one_parquet_per_filing_date(tmp_path):
         )
     )
 
-    exporter = LakehouseBridgeExporter(
-        store, DuckDbCorporateActionsStore(":memory:")
-    )
+    exporter = LakehouseBridgeExporter(store, DuckDbCorporateActionsStore(":memory:"))
     try:
         assert exporter.export_filings(tmp_path / "catalog") == 2
     finally:
@@ -84,10 +84,7 @@ def test_export_filings_writes_one_parquet_per_filing_date(tmp_path):
         ),
         ("NSE:TCS-EQ", "shareholding", "Shareholding pattern", None),
     ]
-    assert all(
-        d == date(2026, 1, 10)
-        for d in table.column("filing_date").to_pylist()
-    )
+    assert all(d == date(2026, 1, 10) for d in table.column("filing_date").to_pylist())
 
 
 def test_export_corporate_actions_groups_by_ex_date(tmp_path):
@@ -128,9 +125,7 @@ def test_export_corporate_actions_groups_by_ex_date(tmp_path):
     assert record.old_shares == 1
     assert record.new_shares == 2
 
-    exporter = LakehouseBridgeExporter(
-        DuckDbFilingsStore(":memory:"), store
-    )
+    exporter = LakehouseBridgeExporter(DuckDbFilingsStore(":memory:"), store)
     try:
         assert exporter.export_corporate_actions(tmp_path / "catalog") == 2
     finally:
@@ -190,6 +185,123 @@ def test_empty_stores_write_no_files(tmp_path):
     assert not (tmp_path / "catalog" / "corporate_actions").exists()
 
 
+def test_export_block_deals_groups_by_trade_date(tmp_path):
+    store = DuckDbBlockDealsStore(":memory:")
+    store.upsert(
+        BlockDeal(
+            trade_date=date(2026, 6, 1),
+            exchange="NSE",
+            instrument="NSE:RELIANCE-EQ",
+            security_name="RELIANCE",
+            client_name="CLIENT A",
+            side="buy",
+            category="block",
+            quantity=Decimal("250000.00"),
+            price=Decimal("2500.50"),
+            remarks="Block deal window",
+        )
+    )
+    store.upsert(
+        BlockDeal(
+            trade_date=date(2026, 6, 1),
+            exchange="NSE",
+            instrument="NSE:TCS-EQ",
+            security_name="TCS",
+            client_name="CLIENT B",
+            side="sell",
+            category="bulk",
+            quantity=Decimal("10000.00"),
+            price=Decimal("4000.00"),
+        )
+    )
+    store.upsert(
+        BlockDeal(
+            trade_date=date(2026, 6, 2),
+            exchange="NSE",
+            instrument="NSE:INFY-EQ",
+            security_name="INFOSYS",
+            client_name="CLIENT C",
+            side="buy",
+            category="block",
+            quantity=Decimal("50000.00"),
+            price=Decimal("1800.25"),
+        )
+    )
+
+    exporter = LakehouseBridgeExporter(
+        DuckDbFilingsStore(":memory:"),
+        DuckDbCorporateActionsStore(":memory:"),
+        block_deals=store,
+    )
+    try:
+        assert exporter.export_block_deals(tmp_path / "catalog") == 2
+    finally:
+        store.close()
+
+    files = sorted((tmp_path / "catalog" / "block_deals").glob("*.parquet"))
+    assert len(files) == 2
+    assert [f.name for f in files] == ["2026-06-01.parquet", "2026-06-02.parquet"]
+
+    table = pq.read_table(files[0])
+    assert table.column_names == [
+        "trade_date",
+        "exchange",
+        "instrument",
+        "security_name",
+        "client_name",
+        "side",
+        "category",
+        "quantity",
+        "price",
+        "remarks",
+    ]
+    assert table.schema.field("quantity").type == pa.decimal128(18, 4)
+    assert table.schema.field("price").type == pa.decimal128(18, 4)
+
+    rows = sorted(
+        zip(
+            table.column("instrument").to_pylist(),
+            table.column("client_name").to_pylist(),
+            table.column("side").to_pylist(),
+            table.column("category").to_pylist(),
+            table.column("quantity").to_pylist(),
+            table.column("price").to_pylist(),
+            table.column("remarks").to_pylist(),
+            strict=False,
+        )
+    )
+    assert rows == [
+        (
+            "NSE:RELIANCE-EQ",
+            "CLIENT A",
+            "BUY",
+            "block",
+            Decimal("250000.00"),
+            Decimal("2500.50"),
+            "Block deal window",
+        ),
+        (
+            "NSE:TCS-EQ",
+            "CLIENT B",
+            "SELL",
+            "bulk",
+            Decimal("10000.00"),
+            Decimal("4000.00"),
+            None,
+        ),
+    ]
+    assert all(d == date(2026, 6, 1) for d in table.column("trade_date").to_pylist())
+
+
+def test_block_deals_missing_store_exports_nothing(tmp_path):
+    exporter = LakehouseBridgeExporter(
+        DuckDbFilingsStore(":memory:"),
+        DuckDbCorporateActionsStore(":memory:"),
+    )
+    assert exporter.export_block_deals(tmp_path / "catalog") == 0
+    assert not (tmp_path / "catalog" / "block_deals").exists()
+
+
 def test_main_cli_exports_all_datasets(tmp_path):
     db = str(tmp_path / "b.duckdb")
     catalog = str(tmp_path / "catalog")
@@ -216,9 +328,28 @@ def test_main_cli_exports_all_datasets(tmp_path):
     )
     actions.close()
 
+    deals = DuckDbBlockDealsStore(db)
+    deals.upsert(
+        BlockDeal(
+            trade_date=date(2026, 5, 3),
+            exchange="NSE",
+            instrument="NSE:HDFC-EQ",
+            security_name="HDFC",
+            client_name="CLIENT D",
+            side="BUY",
+            category="block",
+            quantity=Decimal("75000.00"),
+            price=Decimal("1600.00"),
+        )
+    )
+    deals.close()
+
     rc = main(["--dataset", "all", "--db", db, "--catalog", catalog])
     assert rc == 0
     assert (tmp_path / "catalog" / "filings" / "2026-05-01.parquet").exists()
-    assert (
-        tmp_path / "catalog" / "corporate_actions" / "2026-05-02.parquet"
-    ).exists()
+    assert (tmp_path / "catalog" / "corporate_actions" / "2026-05-02.parquet").exists()
+    assert (tmp_path / "catalog" / "block_deals" / "2026-05-03.parquet").exists()
+
+    rc = main(["--dataset", "block-deals", "--db", db, "--catalog", catalog])
+    assert rc == 0
+    assert (tmp_path / "catalog" / "block_deals" / "2026-05-03.parquet").exists()

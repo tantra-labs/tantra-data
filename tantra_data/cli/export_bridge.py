@@ -12,6 +12,7 @@ import argparse
 import sys
 from pathlib import Path
 
+from tantra_data.adapters.block_deals_store import DuckDbBlockDealsStore
 from tantra_data.adapters.duckdb_store import DuckDbCorporateActionsStore
 from tantra_data.adapters.filings_store import DuckDbFilingsStore
 from tantra_data.service.bridge_exporter import LakehouseBridgeExporter
@@ -38,7 +39,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--dataset",
-        choices=("filings", "corporate-actions", "all"),
+        choices=("filings", "corporate-actions", "block-deals", "all"),
         default="all",
         help="Which projection(s) to export.",
     )
@@ -49,7 +50,8 @@ def main(argv: list[str] | None = None) -> int:
 
     filings = DuckDbFilingsStore(str(db_path))
     corporate_actions = DuckDbCorporateActionsStore(str(db_path))
-    exporter = LakehouseBridgeExporter(filings, corporate_actions)
+    block_deals = DuckDbBlockDealsStore(str(db_path))
+    exporter = LakehouseBridgeExporter(filings, corporate_actions, block_deals)
     try:
         if args.dataset in ("filings", "all"):
             n_filings = exporter.export_filings(catalog_root)
@@ -57,6 +59,9 @@ def main(argv: list[str] | None = None) -> int:
         if args.dataset in ("corporate-actions", "all"):
             n_actions = exporter.export_corporate_actions(catalog_root)
             print(f"Exported {n_actions} corporate-action files")
+        if args.dataset in ("block-deals", "all"):
+            n_deals = exporter.export_block_deals(catalog_root)
+            print(f"Exported {n_deals} block-deal files")
         return 0
     except Exception as exc:
         print(f"export failed: {exc}", file=sys.stderr)
@@ -64,6 +69,7 @@ def main(argv: list[str] | None = None) -> int:
     finally:
         filings.close()
         corporate_actions.close()
+        block_deals.close()
 
 
 if __name__ == "__main__":
