@@ -13,8 +13,13 @@ import sys
 from pathlib import Path
 
 from tantra_data.adapters.block_deals_store import DuckDbBlockDealsStore
-from tantra_data.adapters.duckdb_store import DuckDbCorporateActionsStore
+from tantra_data.adapters.delivery_store import DuckDbDeliveryStore
+from tantra_data.adapters.duckdb_store import (
+    DuckDbCalendarStore,
+    DuckDbCorporateActionsStore,
+)
 from tantra_data.adapters.filings_store import DuckDbFilingsStore
+from tantra_data.adapters.institutional_flow_store import DuckDbInstitutionalFlowStore
 from tantra_data.adapters.news_store import DuckDbNewsStore
 from tantra_data.service.bridge_exporter import LakehouseBridgeExporter
 
@@ -40,7 +45,16 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--dataset",
-        choices=("filings", "corporate-actions", "block-deals", "news", "all"),
+        choices=(
+            "filings",
+            "corporate-actions",
+            "block-deals",
+            "news",
+            "institutional-flows",
+            "delivery",
+            "economic-calendar",
+            "all",
+        ),
         default="all",
         help="Which projection(s) to export.",
     )
@@ -53,7 +67,18 @@ def main(argv: list[str] | None = None) -> int:
     corporate_actions = DuckDbCorporateActionsStore(str(db_path))
     block_deals = DuckDbBlockDealsStore(str(db_path))
     news = DuckDbNewsStore(str(db_path))
-    exporter = LakehouseBridgeExporter(filings, corporate_actions, block_deals, news)
+    institutional_flows = DuckDbInstitutionalFlowStore(str(db_path))
+    delivery = DuckDbDeliveryStore(str(db_path))
+    calendar = DuckDbCalendarStore(str(db_path))
+    exporter = LakehouseBridgeExporter(
+        filings,
+        corporate_actions,
+        block_deals,
+        news,
+        institutional_flows=institutional_flows,
+        delivery=delivery,
+        calendar=calendar,
+    )
     try:
         if args.dataset in ("filings", "all"):
             n_filings = exporter.export_filings(catalog_root)
@@ -67,6 +92,15 @@ def main(argv: list[str] | None = None) -> int:
         if args.dataset in ("news", "all"):
             n_news = exporter.export_news(catalog_root)
             print(f"Exported {n_news} news files")
+        if args.dataset in ("institutional-flows", "all"):
+            n_flows = exporter.export_institutional_flows(catalog_root)
+            print(f"Exported {n_flows} institutional-flow files")
+        if args.dataset in ("delivery", "all"):
+            n_delivery = exporter.export_delivery(catalog_root)
+            print(f"Exported {n_delivery} delivery files")
+        if args.dataset in ("economic-calendar", "all"):
+            n_events = exporter.export_economic_calendar(catalog_root)
+            print(f"Exported {n_events} economic-calendar files")
         return 0
     except Exception as exc:
         print(f"export failed: {exc}", file=sys.stderr)
@@ -76,6 +110,9 @@ def main(argv: list[str] | None = None) -> int:
         corporate_actions.close()
         block_deals.close()
         news.close()
+        institutional_flows.close()
+        delivery.close()
+        calendar.close()
 
 
 if __name__ == "__main__":

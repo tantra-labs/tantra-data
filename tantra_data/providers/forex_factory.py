@@ -170,15 +170,11 @@ def fetch_forex_factory() -> list[CalendarRow]:
     except requests.RequestException as exc:
         raise RuntimeError(f"forex factory calendar fetch failed: {exc}") from exc
     if response.status_code != 200:
-        raise RuntimeError(
-            f"forex factory calendar fetch returned HTTP {response.status_code}"
-        )
+        raise RuntimeError(f"forex factory calendar fetch returned HTTP {response.status_code}")
     return events_to_rows(parse_forex_factory(response.text))
 
 
-def ingest_forex_factory(
-    repository: _CalendarRepository, limit: int | None = None
-) -> int:
+def ingest_forex_factory(repository: _CalendarRepository, limit: int | None = None) -> int:
     """Fetch, map, and upsert the live feed into a calendar repository.
 
     Returns the number of events upserted. When ``limit`` is given, only the

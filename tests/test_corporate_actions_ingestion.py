@@ -108,40 +108,27 @@ def test_parse_corporate_actions_parses_verified_shape() -> None:
 
 def test_subject_to_action_maps_observed_patterns() -> None:
     ex_date = date(2026, 11, 2)
-    assert subject_to_action(_row("Bonus 1:1")) == Bonus(
-        "NSE:COLPAL-EQ", ex_date, 1, 2
-    )
-    assert subject_to_action(_row("Bonus 3:2")) == Bonus(
-        "NSE:COLPAL-EQ", ex_date, 3, 5
-    )
-    split_subject = (
-        "Face Value Split (Sub-Division) - From Rs 10/- Per Share "
-        "To Re 1/- Per Share"
-    )
-    assert subject_to_action(_row(split_subject)) == Split(
-        "NSE:COLPAL-EQ", ex_date, 1, 10
-    )
+    assert subject_to_action(_row("Bonus 1:1")) == Bonus("NSE:COLPAL-EQ", ex_date, 1, 2)
+    assert subject_to_action(_row("Bonus 3:2")) == Bonus("NSE:COLPAL-EQ", ex_date, 3, 5)
+    split_subject = "Face Value Split (Sub-Division) - From Rs 10/- Per Share To Re 1/- Per Share"
+    assert subject_to_action(_row(split_subject)) == Split("NSE:COLPAL-EQ", ex_date, 1, 10)
     assert subject_to_action(
         _row("Face Value Split (Sub-Division) - From Rs 5/- Per Share To Re 1/- Per Share")
     ) == Split("NSE:COLPAL-EQ", ex_date, 1, 5)
-    assert subject_to_action(
-        _row("Interim Dividend - Rs 24 Per Share")
-    ) == Dividend("NSE:COLPAL-EQ", ex_date, Decimal("24"))
-    assert subject_to_action(
-        _row("Final Dividend - Rs 5 Per Share")
-    ) == Dividend("NSE:COLPAL-EQ", ex_date, Decimal("5"))
-    compound = (
-        "Special Dividend - Rs 1.50 Per Share/ Interim Dividend - Rs 1.50 Per Share"
+    assert subject_to_action(_row("Interim Dividend - Rs 24 Per Share")) == Dividend(
+        "NSE:COLPAL-EQ", ex_date, Decimal("24")
     )
-    assert subject_to_action(_row(compound)) == Dividend(
-        "NSE:COLPAL-EQ", ex_date, Decimal("1.50")
+    assert subject_to_action(_row("Final Dividend - Rs 5 Per Share")) == Dividend(
+        "NSE:COLPAL-EQ", ex_date, Decimal("5")
     )
-    assert subject_to_action(
-        _row("Rights 3:8 @ Premium Re 0.50/-", face_value="1")
-    ) == Rights("NSE:COLPAL-EQ", ex_date, 3, 8, Decimal("1.50"))
-    assert subject_to_action(
-        _row("Rights 5:12 @ Premium Rs 855/-", face_value="10")
-    ) == Rights("NSE:COLPAL-EQ", ex_date, 5, 12, Decimal("865"))
+    compound = "Special Dividend - Rs 1.50 Per Share/ Interim Dividend - Rs 1.50 Per Share"
+    assert subject_to_action(_row(compound)) == Dividend("NSE:COLPAL-EQ", ex_date, Decimal("1.50"))
+    assert subject_to_action(_row("Rights 3:8 @ Premium Re 0.50/-", face_value="1")) == Rights(
+        "NSE:COLPAL-EQ", ex_date, 3, 8, Decimal("1.50")
+    )
+    assert subject_to_action(_row("Rights 5:12 @ Premium Rs 855/-", face_value="10")) == Rights(
+        "NSE:COLPAL-EQ", ex_date, 5, 12, Decimal("865")
+    )
 
 
 def test_subject_to_action_skips_unsupported() -> None:

@@ -58,9 +58,7 @@ def parse_news(text: str | bytes) -> list[NewsRow]:
     if isinstance(text, bytes):
         text = text.decode("ISO-8859-1")
     root = ET.fromstring(text)
-    channel = next(
-        (child for child in root if _local_name(child.tag) == "channel"), None
-    )
+    channel = next((child for child in root if _local_name(child.tag) == "channel"), None)
     if channel is None:
         return []
     rows: list[NewsRow] = []
@@ -103,9 +101,7 @@ def read_news(path: str | Path) -> list[NewsRow]:
     return parse_news(Path(path).read_bytes())
 
 
-def rows_to_articles(
-    rows: list[NewsRow], source: str = "moneycontrol"
-) -> list[NewsArticle]:
+def rows_to_articles(rows: list[NewsRow], source: str = "moneycontrol") -> list[NewsArticle]:
     """Map parsed news rows to domain NewsArticle values (instruments=())."""
     return [
         NewsArticle(
@@ -126,7 +122,5 @@ def fetch_moneycontrol_news() -> list[NewsArticle]:
 
     response = requests.get(MONEYCONTROL_FEED_URL, timeout=15)
     if response.status_code != 200:
-        raise RuntimeError(
-            f"Moneycontrol RSS feed returned HTTP {response.status_code}"
-        )
+        raise RuntimeError(f"Moneycontrol RSS feed returned HTTP {response.status_code}")
     return rows_to_articles(parse_news(response.content))

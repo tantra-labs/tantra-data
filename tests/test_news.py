@@ -61,22 +61,17 @@ def test_parse_news() -> None:
     first, second = rows
     assert isinstance(first, NewsRow)
     assert first.article_id == (
-        "https://www.moneycontrol.com/news/business/markets/"
-        "sensex-ends-higher-on-it-rally.html"
+        "https://www.moneycontrol.com/news/business/markets/sensex-ends-higher-on-it-rally.html"
     )
     assert first.title == "Sensex ends higher on IT rally"
     assert first.source == "moneycontrol"
     assert first.url == (
-        "https://www.moneycontrol.com/news/business/markets/"
-        "sensex-ends-higher-on-it-rally.html"
+        "https://www.moneycontrol.com/news/business/markets/sensex-ends-higher-on-it-rally.html"
     )
     assert first.published_at == datetime(2024, 4, 23, 17, 6, 32, tzinfo=UTC)
-    assert first.summary == (
-        'Indian equity benchmarks "closed" in the green today.'
-    )
+    assert first.summary == ('Indian equity benchmarks "closed" in the green today.')
     assert second.article_id == (
-        "https://www.moneycontrol.com/news/business/"
-        "rbi-keeps-repo-rate-unchanged.html"
+        "https://www.moneycontrol.com/news/business/rbi-keeps-repo-rate-unchanged.html"
     )
     assert second.summary is None
     assert second.published_at == datetime(2024, 4, 24, 4, 45, 0, tzinfo=UTC)
@@ -90,9 +85,7 @@ def test_rows_to_articles() -> None:
     assert all(isinstance(a, NewsArticle) for a in articles)
     assert all(a.source == "moneycontrol" for a in articles)
     assert all(a.instruments == () for a in articles)
-    assert articles[0].published_at == datetime(
-        2024, 4, 23, 17, 6, 32, tzinfo=UTC
-    )
+    assert articles[0].published_at == datetime(2024, 4, 23, 17, 6, 32, tzinfo=UTC)
 
 
 def test_duckdb_news_store_round_trip() -> None:
@@ -131,16 +124,10 @@ def test_duckdb_news_store_round_trip() -> None:
         assert [a.url for a in store.query(query="rbi")] == [article_b.url]
         assert [a.url for a in store.query(query="green")] == [article_a.url]
         # Date-window filters.
-        assert [a.url for a in store.query(start_date=date(2024, 4, 24))] == [
-            article_b.url
-        ]
-        assert [a.url for a in store.query(end_date=date(2024, 4, 23))] == [
-            article_a.url
-        ]
+        assert [a.url for a in store.query(start_date=date(2024, 4, 24))] == [article_b.url]
+        assert [a.url for a in store.query(end_date=date(2024, 4, 23))] == [article_a.url]
         # Instrument filter.
-        assert [a.url for a in store.query(instrument="SENSEX")] == [
-            article_a.url
-        ]
+        assert [a.url for a in store.query(instrument="SENSEX")] == [article_a.url]
     finally:
         store.close()
 
@@ -177,9 +164,7 @@ def test_news_reader_search_news() -> None:
         ]
         assert frame.height == 2
         assert frame.schema["article_id"] == pl.String
-        assert frame.schema["published_at"] == pl.Datetime(
-            "us", time_zone="UTC"
-        )
+        assert frame.schema["published_at"] == pl.Datetime("us", time_zone="UTC")
         # Newest first (ORDER BY published_at DESC).
         assert frame["title"].to_list() == [
             "RBI keeps repo rate unchanged",
@@ -192,9 +177,7 @@ def test_news_reader_search_news() -> None:
         empty = reader.search_news(query="no-such-article")
         assert empty.height == 0
         assert empty.columns == frame.columns
-        assert empty.schema["published_at"] == pl.Datetime(
-            "us", time_zone="UTC"
-        )
+        assert empty.schema["published_at"] == pl.Datetime("us", time_zone="UTC")
     finally:
         store.close()
 

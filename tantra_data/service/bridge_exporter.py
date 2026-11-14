@@ -24,12 +24,15 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 from tantra_data.domain.block_deals import BlockDeal
+from tantra_data.domain.calendar import CalendarEvent
 from tantra_data.domain.corporate_actions import (
     CorporateAction,
     CorporateActionRecord,
     to_record,
 )
+from tantra_data.domain.delivery import DeliveryRecord
 from tantra_data.domain.filings import Filing, FilingType
+from tantra_data.domain.institutional_flow import InstitutionalFlow
 from tantra_data.domain.news import NewsArticle
 
 __all__ = ["LakehouseBridgeExporter"]
@@ -88,6 +91,45 @@ class NewsRepository(Protocol):
     def close(self) -> None: ...
 
 
+class InstitutionalFlowRepository(Protocol):
+    """Structural interface for the institutional-flows store consumed by the bridge."""
+
+    def query(
+        self,
+        trade_date: date | None = None,
+        participant: str | None = None,
+        segment: str | None = None,
+    ) -> list[InstitutionalFlow]: ...
+
+    def close(self) -> None: ...
+
+
+class DeliveryRepository(Protocol):
+    """Structural interface for the delivery store consumed by the bridge."""
+
+    def query(
+        self,
+        trade_date: date | None = None,
+        instrument: str | None = None,
+    ) -> list[DeliveryRecord]: ...
+
+    def close(self) -> None: ...
+
+
+class CalendarEventsRepository(Protocol):
+    """Structural interface for the economic-calendar store consumed by the bridge."""
+
+    def query(
+        self,
+        instrument: str | None = None,
+        category: str | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ) -> list[CalendarEvent]: ...
+
+    def close(self) -> None: ...
+
+
 class LakehouseBridgeExporter:
     """Writes one Parquet projection file per date for the bridge datasets."""
 
@@ -97,11 +139,17 @@ class LakehouseBridgeExporter:
         corporate_actions: CorporateActionsRepository,
         block_deals: BlockDealsRepository | None = None,
         news: NewsRepository | None = None,
+        institutional_flows: InstitutionalFlowRepository | None = None,
+        delivery: DeliveryRepository | None = None,
+        calendar: CalendarEventsRepository | None = None,
     ) -> None:
         self._filings = filings
         self._corporate_actions = corporate_actions
         self._block_deals = block_deals
         self._news = news
+        self._institutional_flows = institutional_flows
+        self._delivery = delivery
+        self._calendar = calendar
 
     def export_filings(self, root: str | Path) -> int:
         """Write ``{root}/catalog/filings/<filing_date>.parquet`` per filing date.
@@ -239,6 +287,119 @@ class LakehouseBridgeExporter:
                 }
             )
             path = root / "news" / f"{published_date.isoformat()}.parquet"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            pq.write_table(table, path, version="2.6")
+            count += 1
+        return count
+
+    def export_institutional_flows(self, root: str | Path) -> int:
+        """Write ``{root}/catalog/institutional_flows/<trade_date>.parquet`` per trade date.
+
+        Returns the number of files written. Existing files are overwritten.
+        Returns 0 when no institutional-flows store is configured.
+        """
+        if self._institutional_flows is None:
+            return 0
+        root = Path(root)
+        by_date: dict[date, list[InstitutionalFlow]] = {}
+        for flow in self._institutional_flows.query():
+            by_date.setdefault(flow.trade_date, []).append(flow)
+
+        count = 0
+        for trade_date, flows in sorted(by_date.items()):
+            table = pa.Table.from_pydict(
+                {
+                    "trade_date": pa.array([f.trade_date for f in flows], type=pa.date32()),
+                    "participant": pa.array([f.participant for f in flows], type=pa.string()),
+                    "segment": pa.array([f.segment for f in flows], type=pa.string()),
+                    "gross_buy": pa.array([f.gross_buy for f in flows], type=pa.decimal128(18, 4)),
+                    "gross_sell": pa.array(
+                        [f.gross_sell for f in flows], type=pa.decimal128(18, 4)
+                    ),
+                    "net": pa.array([f.net for f in flows], type=pa.decimal128(18, 4)),
+                    "source": pa.array([f.source for f in flows], type=pa.string()),
+                }
+            )
+            path = root / "institutional_flows" / f"{trade_date.isoformat()}.parquet"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            pq.write_table(table, path, version="2.6")
+            count += 1
+        return count
+
+    def export_delivery(self, root: str | Path) -> int:
+        """Write ``{root}/catalog/delivery/<trade_date>.parquet`` per trade date.
+
+        Returns the number of files written. Existing files are overwritten.
+        Returns 0 when no delivery store is configured.
+        """
+        if self._delivery is None:
+            return 0
+        root = Path(root)
+        by_date: dict[date, list[DeliveryRecord]] = {}
+        for record in self._delivery.query():
+            by_date.setdefault(record.trade_date, []).append(record)
+
+        count = 0
+        for trade_date, records in sorted(by_date.items()):
+            table = pa.Table.from_pydict(
+                {
+                    "trade_date": pa.array([r.trade_date for r in records], type=pa.date32()),
+                    "exchange": pa.array([r.exchange for r in records], type=pa.string()),
+                    "instrument": pa.array([r.instrument for r in records], type=pa.string()),
+                    "traded_quantity": pa.array(
+                        [r.traded_quantity for r in records], type=pa.int64()
+                    ),
+                    "deliverable_quantity": pa.array(
+                        [r.deliverable_quantity for r in records], type=pa.int64()
+                    ),
+                    "delivery_pct": pa.array(
+                        [r.delivery_pct for r in records], type=pa.decimal128(18, 4)
+                    ),
+                }
+            )
+            path = root / "delivery" / f"{trade_date.isoformat()}.parquet"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            pq.write_table(table, path, version="2.6")
+            count += 1
+        return count
+
+    def export_economic_calendar(self, root: str | Path) -> int:
+        """Write ``{root}/catalog/economic_calendar/<scheduled_date>.parquet`` per date.
+
+        Returns the number of files written. Existing files are overwritten.
+        Returns 0 when no calendar store is configured.
+        """
+        if self._calendar is None:
+            return 0
+        root = Path(root)
+        by_date: dict[date, list[CalendarEvent]] = {}
+        for event in self._calendar.query():
+            by_date.setdefault(event.scheduled_at.date(), []).append(event)
+
+        count = 0
+        for scheduled_date, events in sorted(by_date.items()):
+            table = pa.Table.from_pydict(
+                {
+                    "scheduled_date": pa.array(
+                        [e.scheduled_at.date() for e in events], type=pa.date32()
+                    ),
+                    "scheduled_at": pa.array(
+                        [e.scheduled_at.astimezone(UTC).isoformat() for e in events],
+                        type=pa.string(),
+                    ),
+                    "instrument": pa.array([e.instrument for e in events], type=pa.string()),
+                    "country": pa.array([e.country for e in events], type=pa.string()),
+                    "currency": pa.array([e.currency for e in events], type=pa.string()),
+                    "category": pa.array([e.category for e in events], type=pa.string()),
+                    "event_name": pa.array([e.event_name for e in events], type=pa.string()),
+                    "impact_level": pa.array([e.impact_level for e in events], type=pa.string()),
+                    "actual": pa.array([e.actual for e in events], type=pa.decimal128(18, 4)),
+                    "forecast": pa.array([e.forecast for e in events], type=pa.decimal128(18, 4)),
+                    "prior": pa.array([e.prior for e in events], type=pa.decimal128(18, 4)),
+                    "period_label": pa.array([e.period_label for e in events], type=pa.string()),
+                }
+            )
+            path = root / "economic_calendar" / f"{scheduled_date.isoformat()}.parquet"
             path.parent.mkdir(parents=True, exist_ok=True)
             pq.write_table(table, path, version="2.6")
             count += 1

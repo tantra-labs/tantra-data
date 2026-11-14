@@ -147,9 +147,7 @@ def test_default_calendar_rows_falls_back_to_stub_on_network_failure(
     def _network_down() -> list[CalendarRow]:
         raise RuntimeError("network unavailable")
 
-    monkeypatch.setattr(
-        "tantra_data.providers.calendar.fetch_forex_factory", _network_down
-    )
+    monkeypatch.setattr("tantra_data.providers.calendar.fetch_forex_factory", _network_down)
 
     rows = default_calendar_rows()
 

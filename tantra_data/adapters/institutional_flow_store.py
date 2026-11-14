@@ -45,8 +45,7 @@ class DuckDbInstitutionalFlowStore:
             [flow.trade_date, flow.participant, flow.segment],
         )
         self._connection.execute(
-            f"INSERT INTO institutional_flows ({_COLUMNS}) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            f"INSERT INTO institutional_flows ({_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?)",
             [
                 flow.trade_date,
                 flow.participant,

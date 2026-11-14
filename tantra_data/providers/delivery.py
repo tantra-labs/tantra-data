@@ -24,10 +24,7 @@ __all__ = [
     "rows_to_records",
 ]
 
-_BHAVCOPY_URL = (
-    "https://archives.nseindia.com/products/content/"
-    "sec_bhavdata_full_{date}.csv"
-)
+_BHAVCOPY_URL = "https://archives.nseindia.com/products/content/sec_bhavdata_full_{date}.csv"
 _DATE_FORMAT = "%d-%b-%Y"
 
 _COLUMN_ALIASES = {
@@ -96,29 +93,19 @@ def parse_delivery(text: str) -> list[DeliveryRow]:
     columns = _pick_columns(fieldnames)
     missing = [role for role in ("date", "traded") if role not in columns]
     if missing:
-        raise ValueError(
-            f"delivery data is missing required columns: {', '.join(missing)}"
-        )
+        raise ValueError(f"delivery data is missing required columns: {', '.join(missing)}")
 
     rows: list[DeliveryRow] = []
     for record in csv.DictReader(lines[1:], fieldnames=fieldnames):
         symbol = _clean(record.get("SYMBOL"))
         if not symbol:
             continue
-        trade_date = datetime.strptime(
-            _clean(record.get(columns["date"])), _DATE_FORMAT
-        ).date()
+        trade_date = datetime.strptime(_clean(record.get(columns["date"])), _DATE_FORMAT).date()
         traded_quantity = int(_clean(record.get(columns["traded"])))
         deliverable = (
-            _parse_int(record.get(columns["deliverable"]))
-            if "deliverable" in columns
-            else None
+            _parse_int(record.get(columns["deliverable"])) if "deliverable" in columns else None
         )
-        pct = (
-            _parse_decimal(record.get(columns["pct"]))
-            if "pct" in columns
-            else None
-        )
+        pct = _parse_decimal(record.get(columns["pct"])) if "pct" in columns else None
         rows.append(
             DeliveryRow(
                 trade_date=trade_date,
@@ -138,9 +125,7 @@ def read_delivery(path: str) -> list[DeliveryRow]:
         return parse_delivery(handle.read())
 
 
-def rows_to_records(
-    rows: list[DeliveryRow], exchange: str = "NSE"
-) -> list[DeliveryRecord]:
+def rows_to_records(rows: list[DeliveryRow], exchange: str = "NSE") -> list[DeliveryRecord]:
     """Convert parsed delivery rows into canonical :class:`DeliveryRecord` values."""
     records: list[DeliveryRecord] = []
     for row in rows:
@@ -148,9 +133,7 @@ def rows_to_records(
         if row.delivery_pct is not None:
             delivery_pct = row.delivery_pct
         elif row.traded_quantity > 0:
-            delivery_pct = (
-                Decimal(deliverable_quantity) / Decimal(row.traded_quantity) * 100
-            )
+            delivery_pct = Decimal(deliverable_quantity) / Decimal(row.traded_quantity) * 100
         else:
             delivery_pct = Decimal(0)
         records.append(
@@ -174,7 +157,5 @@ def fetch_delivery(date_text: str) -> list[DeliveryRecord]:
     url = _BHAVCOPY_URL.format(date=trade_date.strftime("%d%m%Y"))
     response = requests.get(url, timeout=30)
     if response.status_code != 200:
-        raise RuntimeError(
-            f"failed to fetch delivery data from {url}: HTTP {response.status_code}"
-        )
+        raise RuntimeError(f"failed to fetch delivery data from {url}: HTTP {response.status_code}")
     return rows_to_records(parse_delivery(response.text))

@@ -36,9 +36,7 @@ class DuckDbNewsStore:
 
     def upsert(self, article: NewsArticle) -> None:
         """Insert or replace an article, keyed idempotently by url."""
-        self._conn.execute(
-            "DELETE FROM news_articles WHERE url = ?", [article.url]
-        )
+        self._conn.execute("DELETE FROM news_articles WHERE url = ?", [article.url])
         # Store naive UTC so the TIMESTAMP column round-trips exactly,
         # regardless of the connection's session time zone.
         published_at = article.published_at.astimezone(UTC).replace(tzinfo=None)

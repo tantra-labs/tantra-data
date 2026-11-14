@@ -129,9 +129,7 @@ def test_duck_db_delivery_store_upsert_and_query_round_trip() -> None:
         store.upsert(other)
         assert len(store.query()) == 2
         assert store.query(instrument="NSE:20MICRONS-EQ") == [record]
-        assert store.query(
-            trade_date=date(2026, 11, 6), instrument="NSE:21STCENMGM-EQ"
-        ) == [other]
+        assert store.query(trade_date=date(2026, 11, 6), instrument="NSE:21STCENMGM-EQ") == [other]
     finally:
         store.close()
 

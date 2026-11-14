@@ -7,6 +7,16 @@
   `DuckDbBlockDealsStore`; CLI `--dataset block-deals|all`; gap 0005 closed upstream. The Rust
   bridge (`tantra-market-store::BlockDealsProjectionReader` + `tantra-runtime-api-rest`
   `/market-data/block-deals`) consumes it.
+* **Bridge exporter (2026-11-14, gaps 0017/0018/0019 closed)**: `export_institutional_flows`,
+  `export_delivery`, `export_economic_calendar` write
+  `{root}/catalog/institutional_flows|delivery|economic_calendar/<date>.parquet` (exact
+  `decimal128(18,4)` for money/percent columns, `int64` quantities, ISO-8601 UTC strings for
+  timestamps); CLI `--dataset institutional-flows|delivery|economic-calendar`. Consumed by
+  `tantra-market-store` `InstitutionalFlowsProjectionReader`/`DeliveryProjectionReader`/
+  `EconomicCalendarProjectionReader` + `tantra-runtime-api-rest`
+  `FeedMarketReader::with_*` (runtime gap 0007 items 3b/11/12). 14 exporter tests; full
+  `pytest` 144 green; ruff clean (note: sandbox ruff 0.17.5 reformatted 13 files whitespace-only
+  under the repo's `ruff>=0.4.0` pin).
 * **Docs overhaul (2026-11-12)**: the historical `docs/roadmap/` was dismantled into
   `docs/design/`, `docs/gaps/`, `docs/plans/` and the whole set rewritten to match the source.
   - Design: `architecture.md` now inventories the actual 7-domain / 7-reader / 7-store /

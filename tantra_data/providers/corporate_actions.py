@@ -32,9 +32,7 @@ __all__ = [
 ]
 
 _NSE_BASE_URL = "https://www.nseindia.com"
-_NSE_CORPORATE_ACTIONS_URL = (
-    "https://www.nseindia.com/api/corporates-corporateActions"
-)
+_NSE_CORPORATE_ACTIONS_URL = "https://www.nseindia.com/api/corporates-corporateActions"
 _NSE_REFERER_URL = "https://www.nseindia.com/option-chain"
 _NSE_DATE_FORMAT = "%d-%b-%Y"
 
@@ -46,9 +44,7 @@ _SPLIT_RE = re.compile(
 _DIVIDEND_PREFIX_RE = re.compile(
     r"^(?:Interim|Final|Special|1st|2nd|3rd|4th|Dividend)\b", re.IGNORECASE
 )
-_PER_SHARE_AMOUNT_RE = re.compile(
-    r"R(?:s|e)?\s+([0-9.]+)(?:/-)?\s+Per Share", re.IGNORECASE
-)
+_PER_SHARE_AMOUNT_RE = re.compile(r"R(?:s|e)?\s+([0-9.]+)(?:/-)?\s+Per Share", re.IGNORECASE)
 _RIGHTS_RE = re.compile(
     r"^Rights\s+(\d+):(\d+)\s*(?:@\s*Premium\s+R(?:s|e)?\s*([0-9.]+))?",
     re.IGNORECASE,
@@ -88,9 +84,7 @@ def parse_corporate_actions(text: str) -> list[CorporateActionRow]:
     return rows
 
 
-def subject_to_action(
-    row: CorporateActionRow, exchange: str = "NSE"
-) -> CorporateAction | None:
+def subject_to_action(row: CorporateActionRow, exchange: str = "NSE") -> CorporateAction | None:
     subject = row.subject.strip()
     instrument = f"{exchange}:{row.symbol}-EQ"
 
@@ -131,9 +125,7 @@ def subject_to_action(
     return None
 
 
-def rows_to_actions(
-    rows: list[CorporateActionRow], exchange: str = "NSE"
-) -> list[CorporateAction]:
+def rows_to_actions(rows: list[CorporateActionRow], exchange: str = "NSE") -> list[CorporateAction]:
     actions: list[CorporateAction] = []
     for row in rows:
         action = subject_to_action(row, exchange)
@@ -175,9 +167,7 @@ def _parse_face_value_or_none(value: object) -> Decimal | None:
     return Decimal(value)
 
 
-def _split_from_faces(
-    old_face: str, new_face: str, instrument: str, ex_date: date
-) -> Split:
+def _split_from_faces(old_face: str, new_face: str, instrument: str, ex_date: date) -> Split:
     old_decimal = Decimal(old_face)
     new_decimal = Decimal(new_face)
     places = max(_decimal_places(old_decimal), _decimal_places(new_decimal))

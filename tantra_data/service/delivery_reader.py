@@ -43,9 +43,7 @@ class PythonDeliveryReader(DeliveryReader):
                 "instrument": [record.instrument for record in records],
                 "exchange": [record.exchange for record in records],
                 "traded_quantity": [record.traded_quantity for record in records],
-                "deliverable_quantity": [
-                    record.deliverable_quantity for record in records
-                ],
+                "deliverable_quantity": [record.deliverable_quantity for record in records],
                 "delivery_pct": [record.delivery_pct for record in records],
             },
             schema=_SCHEMA,

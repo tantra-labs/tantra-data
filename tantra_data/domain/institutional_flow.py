@@ -64,9 +64,7 @@ class InstitutionalFlow:
         object.__setattr__(self, "participant", participant)
         segment = self.segment.lower()
         if segment not in _VALID_SEGMENTS:
-            raise ValueError(
-                f"invalid segment {self.segment!r}; must be one of {_VALID_SEGMENTS}"
-            )
+            raise ValueError(f"invalid segment {self.segment!r}; must be one of {_VALID_SEGMENTS}")
         object.__setattr__(self, "segment", segment)
         object.__setattr__(self, "gross_buy", to_decimal(self.gross_buy))
         object.__setattr__(self, "gross_sell", to_decimal(self.gross_sell))

@@ -66,9 +66,7 @@ class BlockDeal:
         object.__setattr__(self, "trade_date", self.trade_date)
         object.__setattr__(self, "exchange", _non_empty(self.exchange, "exchange"))
         object.__setattr__(self, "instrument", _non_empty(self.instrument, "instrument"))
-        object.__setattr__(
-            self, "security_name", _non_empty(self.security_name, "security_name")
-        )
+        object.__setattr__(self, "security_name", _non_empty(self.security_name, "security_name"))
         object.__setattr__(self, "client_name", _non_empty(self.client_name, "client_name"))
         side = self.side.upper()
         if side not in _VALID_SIDES:
