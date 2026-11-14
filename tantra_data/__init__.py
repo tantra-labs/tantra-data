@@ -92,6 +92,11 @@ from tantra_data.providers.calendar import (
     rows_to_events,
     stubbed_calendar_rows,
 )
+from tantra_data.providers.corporate_actions import (
+    parse_corporate_actions,
+    rows_to_actions,
+    subject_to_action,
+)
 from tantra_data.providers.delivery import (
     parse_delivery,
     read_delivery,
@@ -102,6 +107,11 @@ from tantra_data.providers.filings import (
     parse_filings,
     read_filings,
     rows_to_filings,
+)
+from tantra_data.providers.forex_factory import (
+    events_to_rows,
+    fetch_forex_factory,
+    parse_forex_factory,
 )
 from tantra_data.providers.institutional_flow import (
     parse_institutional_flows,
@@ -212,14 +222,18 @@ __all__ = [
     "TantraDataService",
     "VectorizedScreener",
     "__version__",
+    "events_to_rows",
+    "fetch_forex_factory",
     "fetch_symbol_profiles",
     "from_record",
     "parse_bhavcopy",
     "parse_block_deals",
     "parse_bulk_deals",
     "parse_calendar",
+    "parse_corporate_actions",
     "parse_delivery",
     "parse_filings",
+    "parse_forex_factory",
     "parse_institutional_flows",
     "parse_macro",
     "parse_news",
@@ -232,6 +246,7 @@ __all__ = [
     "read_institutional_flows",
     "read_macro",
     "read_news",
+    "rows_to_actions",
     "rows_to_articles",
     "rows_to_bars",
     "rows_to_deals",
@@ -242,6 +257,7 @@ __all__ = [
     "rows_to_profiles",
     "rows_to_records",
     "stubbed_calendar_rows",
+    "subject_to_action",
     "to_record",
     "yfinance_available",
 ]

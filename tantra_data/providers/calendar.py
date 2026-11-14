@@ -1,9 +1,9 @@
-"""Stubbed calendar events provider.
+"""Calendar events provider (stubbed rows + live Forex Factory economic feed).
 
-This provider ships a small, hardcoded calendar of scheduled events
-(economic releases, earnings, dividends, splits, IPOs) so that the
-``CalendarReader`` port has data to serve while an external calendar
-data source/vendor decision remains pending.
+The default calendar source (T5.1 vendor decision, gap 0012) is the live
+Forex Factory weekly economic-calendar JSON feed; when the network is
+unavailable, :func:`default_calendar_rows` falls back to the bundled stubbed
+rows (offline mode) so the ``CalendarReader`` port keeps serving data.
 
 Zero-floats invariant: every numeric value is an exact ``decimal.Decimal``.
 """
@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import cast
 
 from tantra_data.domain.calendar import CalendarEvent
+from tantra_data.providers.forex_factory import fetch_forex_factory
 
 _VALID_CATEGORIES = ("Economic", "Earnings", "Dividends", "Splits", "IPO")
 _VALID_IMPACT_LEVELS = ("High", "Medium", "Low")
@@ -213,6 +214,20 @@ def stubbed_calendar_rows() -> list[CalendarRow]:
     ]
 
 
+def default_calendar_rows() -> list[CalendarRow]:
+    """Return the live economic-calendar rows when the network is available.
+
+    Uses the Forex Factory weekly economic-calendar JSON feed (the T5.1
+    vendor decision, see docs/gaps/0012-*.md). On any failure (offline,
+    HTTP error, malformed payload) it falls back to the bundled stubbed rows
+    (offline mode) so callers always get a usable calendar.
+    """
+    try:
+        return fetch_forex_factory()
+    except Exception:
+        return stubbed_calendar_rows()
+
+
 def read_calendar(path: str | Path) -> list[CalendarRow]:
     """Read and parse a calendar CSV file from disk."""
     with open(path, encoding="utf-8") as handle:
@@ -241,6 +256,7 @@ def rows_to_events(rows: list[CalendarRow]) -> list[CalendarEvent]:
 
 __all__ = [
     "CalendarRow",
+    "default_calendar_rows",
     "parse_calendar",
     "read_calendar",
     "rows_to_events",
