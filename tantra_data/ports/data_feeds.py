@@ -280,6 +280,35 @@ class DeliveryReader(Protocol):
         ...
 
 
+@runtime_checkable
+class FundamentalsReader(Protocol):
+    """Read financial statements and point-in-time ratios from the lakehouse."""
+
+    def get_statements(
+        self,
+        instrument: str | None = None,
+        period_type: str | None = None,
+        as_of: date | None = None,
+    ) -> pl.DataFrame:
+        """Financial-statement line items, optionally filtered by
+        instrument/period_type, with ``filing_date <= as_of``. Returns an
+        exact-``Decimal`` Polars frame (instrument, statement_type,
+        period_type, period_end_date, filing_date, line_item, value,
+        currency)."""
+        ...
+
+    def get_ratios(
+        self,
+        instrument: str | None = None,
+        as_of: date | None = None,
+    ) -> pl.DataFrame:
+        """Point-in-time ratio snapshots, optionally filtered by
+        instrument/as_of. Returns an exact-``Decimal`` Polars frame
+        (instrument, as_of_date, pe, pb, ev_to_ebitda, dividend_yield, roce,
+        roe, debt_to_equity, interest_coverage, source)."""
+        ...
+
+
 __all__ = [
     "BAR_SCHEMA",
     "BlockDeal",
@@ -291,6 +320,7 @@ __all__ = [
     "DeliveryReader",
     "DeliveryRecord",
     "FilingsReader",
+    "FundamentalsReader",
     "InstitutionalFlow",
     "InstitutionalFlowReader",
     "MacroReader",

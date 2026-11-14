@@ -19,6 +19,8 @@ from tantra_data.adapters.duckdb_store import (
     DuckDbCorporateActionsStore,
 )
 from tantra_data.adapters.filings_store import DuckDbFilingsStore
+from tantra_data.adapters.fundamental_ratios_store import DuckDbFundamentalRatiosStore
+from tantra_data.adapters.fundamental_statement_store import DuckDbFinancialStatementStore
 from tantra_data.adapters.institutional_flow_store import DuckDbInstitutionalFlowStore
 from tantra_data.adapters.news_store import DuckDbNewsStore
 from tantra_data.service.bridge_exporter import LakehouseBridgeExporter
@@ -53,6 +55,8 @@ def main(argv: list[str] | None = None) -> int:
             "institutional-flows",
             "delivery",
             "economic-calendar",
+            "fundamentals",
+            "fundamental-ratios",
             "all",
         ),
         default="all",
@@ -70,6 +74,8 @@ def main(argv: list[str] | None = None) -> int:
     institutional_flows = DuckDbInstitutionalFlowStore(str(db_path))
     delivery = DuckDbDeliveryStore(str(db_path))
     calendar = DuckDbCalendarStore(str(db_path))
+    fundamentals = DuckDbFinancialStatementStore(str(db_path))
+    fundamental_ratios = DuckDbFundamentalRatiosStore(str(db_path))
     exporter = LakehouseBridgeExporter(
         filings,
         corporate_actions,
@@ -78,6 +84,8 @@ def main(argv: list[str] | None = None) -> int:
         institutional_flows=institutional_flows,
         delivery=delivery,
         calendar=calendar,
+        fundamentals=fundamentals,
+        fundamental_ratios=fundamental_ratios,
     )
     try:
         if args.dataset in ("filings", "all"):
@@ -101,6 +109,12 @@ def main(argv: list[str] | None = None) -> int:
         if args.dataset in ("economic-calendar", "all"):
             n_events = exporter.export_economic_calendar(catalog_root)
             print(f"Exported {n_events} economic-calendar files")
+        if args.dataset in ("fundamentals", "all"):
+            n_fundamentals = exporter.export_fundamentals(catalog_root)
+            print(f"Exported {n_fundamentals} fundamentals files")
+        if args.dataset in ("fundamental-ratios", "all"):
+            n_ratios = exporter.export_fundamental_ratios(catalog_root)
+            print(f"Exported {n_ratios} fundamental-ratios files")
         return 0
     except Exception as exc:
         print(f"export failed: {exc}", file=sys.stderr)
@@ -113,6 +127,8 @@ def main(argv: list[str] | None = None) -> int:
         institutional_flows.close()
         delivery.close()
         calendar.close()
+        fundamentals.close()
+        fundamental_ratios.close()
 
 
 if __name__ == "__main__":

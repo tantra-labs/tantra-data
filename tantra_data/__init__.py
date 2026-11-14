@@ -13,6 +13,8 @@ from tantra_data.adapters import (
     DuckDbCalendarStore,
     DuckDbCorporateActionsStore,
     DuckDbFilingsStore,
+    DuckDbFinancialStatementStore,
+    DuckDbFundamentalRatiosStore,
     DuckDbFundamentalsStore,
     DuckDbMacroStore,
     DuckDbProfileStore,
@@ -39,7 +41,13 @@ from tantra_data.domain.coverage import (
 )
 from tantra_data.domain.delivery import DeliveryRecord
 from tantra_data.domain.filings import Filing, FilingType
-from tantra_data.domain.fundamentals import FundamentalRecord
+from tantra_data.domain.fundamentals import (
+    FinancialRatios,
+    FinancialStatement,
+    FundamentalRecord,
+    PeriodType,
+    StatementType,
+)
 from tantra_data.domain.institutional_flow import InstitutionalFlow
 from tantra_data.domain.macro import MacroObservation
 from tantra_data.domain.news import NewsArticle
@@ -50,6 +58,7 @@ from tantra_data.ports.data_feeds import (
     ComparisonOp,
     DeliveryReader,
     FilingsReader,
+    FundamentalsReader,
     InstitutionalFlowReader,
     MacroReader,
     MarketReader,
@@ -67,6 +76,8 @@ from tantra_data.ports.repositories import (
     CalendarRepository,
     DeliveryRepository,
     FilingsRepository,
+    FinancialStatementRepository,
+    FundamentalRatiosRepository,
     InstitutionalFlowRepository,
     MacroSeriesRepository,
     NewsRepository,
@@ -114,6 +125,13 @@ from tantra_data.providers.forex_factory import (
     fetch_forex_factory,
     parse_forex_factory,
 )
+from tantra_data.providers.fundamentals import (
+    fetch_fundamentals,
+    ingest_fundamentals,
+    parse_fundamentals,
+    rows_to_ratios,
+    rows_to_statements,
+)
 from tantra_data.providers.institutional_flow import (
     parse_institutional_flows,
     read_institutional_flows,
@@ -142,6 +160,7 @@ from tantra_data.service.calendar_reader import LakehouseCalendarReader
 from tantra_data.service.data_service import TantraDataService
 from tantra_data.service.delivery_reader import PythonDeliveryReader
 from tantra_data.service.filings_reader import LakehouseFilingsReader
+from tantra_data.service.fundamentals_reader import PythonFundamentalsReader
 from tantra_data.service.institutional_flow_reader import PythonInstitutionalFlowReader
 from tantra_data.service.macro_reader import PythonMacroReader
 from tantra_data.service.market_reader import LakehouseMarketReader
@@ -177,6 +196,8 @@ __all__ = [
     "DuckDbCalendarStore",
     "DuckDbCorporateActionsStore",
     "DuckDbFilingsStore",
+    "DuckDbFinancialStatementStore",
+    "DuckDbFundamentalRatiosStore",
     "DuckDbFundamentalsStore",
     "DuckDbMacroStore",
     "DuckDbProfileStore",
@@ -185,7 +206,12 @@ __all__ = [
     "FilingType",
     "FilingsReader",
     "FilingsRepository",
+    "FinancialRatios",
+    "FinancialStatement",
+    "FinancialStatementRepository",
+    "FundamentalRatiosRepository",
     "FundamentalRecord",
+    "FundamentalsReader",
     "InMemoryReferenceExporter",
     "InstitutionalFlow",
     "InstitutionalFlowReader",
@@ -205,11 +231,13 @@ __all__ = [
     "NewsReader",
     "NewsRepository",
     "ParquetCatalog",
+    "PeriodType",
     "ProfileReader",
     "ProfileRepository",
     "ProfileRow",
     "PythonBlockDealsReader",
     "PythonDeliveryReader",
+    "PythonFundamentalsReader",
     "PythonInstitutionalFlowReader",
     "PythonMacroReader",
     "PythonNewsReader",
@@ -221,6 +249,7 @@ __all__ = [
     "ScreenValue",
     "ScreenerReader",
     "Split",
+    "StatementType",
     "SymbolProfile",
     "TantraDataService",
     "VectorizedScreener",
@@ -228,8 +257,10 @@ __all__ = [
     "events_to_rows",
     "fetch_bhavcopy",
     "fetch_forex_factory",
+    "fetch_fundamentals",
     "fetch_symbol_profiles",
     "from_record",
+    "ingest_fundamentals",
     "parse_bhavcopy",
     "parse_block_deals",
     "parse_bulk_deals",
@@ -238,6 +269,7 @@ __all__ = [
     "parse_delivery",
     "parse_filings",
     "parse_forex_factory",
+    "parse_fundamentals",
     "parse_institutional_flows",
     "parse_macro",
     "parse_news",
@@ -259,7 +291,9 @@ __all__ = [
     "rows_to_flows",
     "rows_to_observations",
     "rows_to_profiles",
+    "rows_to_ratios",
     "rows_to_records",
+    "rows_to_statements",
     "stubbed_calendar_rows",
     "subject_to_action",
     "to_record",

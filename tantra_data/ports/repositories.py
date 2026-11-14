@@ -17,7 +17,13 @@ from tantra_data.domain.calendar import CalendarEvent
 from tantra_data.domain.corporate_actions import CorporateAction
 from tantra_data.domain.delivery import DeliveryRecord
 from tantra_data.domain.filings import Filing, FilingType
-from tantra_data.domain.fundamentals import FundamentalRecord
+from tantra_data.domain.fundamentals import (
+    FinancialRatios,
+    FinancialStatement,
+    FundamentalRecord,
+    PeriodType,
+    StatementType,
+)
 from tantra_data.domain.institutional_flow import InstitutionalFlow
 from tantra_data.domain.macro import MacroObservation
 from tantra_data.domain.news import NewsArticle
@@ -65,6 +71,44 @@ class FundamentalsRepository(Protocol):
         metric: str | None = None,
     ) -> list[FundamentalRecord]:
         """Return records with ``filing_date <= as_of`` (no look-ahead)."""
+        ...
+
+
+@runtime_checkable
+class FinancialStatementRepository(Protocol):
+    """Storage for financial-statement line items (gap 0020)."""
+
+    def upsert(self, statement: FinancialStatement) -> None:
+        """Insert or replace a line item (idempotent on the full key)."""
+        ...
+
+    def query(
+        self,
+        instrument: str | None = None,
+        statement_type: StatementType | None = None,
+        period_type: PeriodType | None = None,
+        as_of: date | None = None,
+        line_item: str | None = None,
+    ) -> list[FinancialStatement]:
+        """Return line items, optionally filtered; ``as_of`` filters on
+        ``filing_date <= as_of`` (no look-ahead)."""
+        ...
+
+
+@runtime_checkable
+class FundamentalRatiosRepository(Protocol):
+    """Storage for point-in-time fundamental-ratio snapshots (gap 0020)."""
+
+    def upsert(self, ratios: FinancialRatios) -> None:
+        """Insert or replace a ratio snapshot (idempotent on instrument + as_of)."""
+        ...
+
+    def query(
+        self,
+        instrument: str | None = None,
+        as_of: date | None = None,
+    ) -> list[FinancialRatios]:
+        """Return ratio snapshots, optionally filtered by instrument / as-of date."""
         ...
 
 
@@ -256,6 +300,8 @@ __all__ = [
     "DataService",
     "DeliveryRepository",
     "FilingsRepository",
+    "FinancialStatementRepository",
+    "FundamentalRatiosRepository",
     "FundamentalsRepository",
     "InstitutionalFlowRepository",
     "MacroSeriesRepository",

@@ -1,6 +1,17 @@
 # `tantra-data` — Inter-Agent Handoff
 
 ## Phase / Slice Status
+* **Gap 0020 fundamentals (Python side, 2026-11-14)**: yfinance vendor
+  `providers/fundamentals.py` (parse/rows/fetch/ingest; `FinancialStatement` +
+  `FinancialRatios` domain; exact `Decimal`; live-verified `RELIANCE.NS`), stores
+  `DuckDbFinancialStatementStore`/`DuckDbFundamentalRatiosStore`, reader
+  `PythonFundamentalsReader` (`Decimal(18,4)` frames), `cli/ingest_fundamentals.py`
+  (registered in `cli/__main__.py`), bridge export `export_fundamentals` →
+  `catalog/fundamentals/<filing_date>.parquet` + `export_fundamental_ratios` →
+  `catalog/fundamental_ratios/<as_of_date>.parquet` (exact `Decimal128(18,4)`),
+  `--dataset fundamentals|fundamental-ratios`. 15 tests; full `pytest` 159 green;
+  ruff + mypy clean. Gap doc stays OPEN until the Rust `tantra-market-store`
+  projection reader + runtime wiring land (orchestrator slice).
 * **Tier 6A (COMPLETE)**: Implemented Point-in-Time Financial Lakehouse bounded context.
 * **Bridge exporter (T7.2, 2026-11-14)**: `LakehouseBridgeExporter.export_block_deals` writes
   `{root}/catalog/block_deals/<trade_date>.parquet` (decimal128(18,4)) from the
@@ -120,6 +131,10 @@
   clean. Both gap docs moved to Closed Gaps; plan 0002 moved to Implemented Plans.
 
 ## Immediate Next Step
+* Close gap 0020: Rust `tantra-market-store` fundamentals projection reader over
+  `catalog/fundamentals/*.parquet` + `catalog/fundamental_ratios/*.parquet`
+  (`FeedMarketReader::with_fundamentals` style, per gaps 0017/0018/0019), then
+  wire `fundamental_ratios`/`financial_statements` chat tools and close the gap doc.
 * `tantra-ui-web`: Proceed with gap 0011 (wire sparklines to `GET /bars/{id}`) against verified
   catalog data; for plan 0007 / gap 0024 (Risk tab), either use option (b) local equity curve or
   schedule index ingestion in `tantra-data`.
