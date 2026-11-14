@@ -35,6 +35,9 @@ overhaul.
 | [0017](0017-institutional-flow-rust-bridge.md) | FII/DII institutional-flow data is Python-side only — no Rust consumer bridge (blocked chat `institutional_flows` tool; plan 0007 Track 2 Ph 4 + plan 0010) | `tantra_data` (bridge_exporter) + `tantra-market-store` projection reader | — |
 | [0018](0018-economic-calendar-rust-bridge.md) | Economic-calendar data is Python-side only — no Rust consumer bridge (blocked chat `economic_calendar` tool; plan 0007 Track 2 Ph 5) | `tantra_data` (bridge_exporter) + `tantra-market-store` projection reader | — |
 | [0019](0019-delivery-rust-bridge.md) | Delivery % / delivery-adjusted volume is Python-side only — no Rust consumer bridge (blocked chat `delivery_analysis` tool; agent plan 0010 Phase 2) | `tantra_data` (bridge_exporter) + `tantra-market-store` projection reader | — |
+| [0020](0020-fundamentals-ingestion.md) | Company fundamentals / financial statements (ratios, income, balance sheet, cash flow) — no data source anywhere (blocked chat `fundamental_ratios`/`financial_statements`; agent plan 0007 Track 3 Ph 6) | `tantra_data` (fundamentals) | — |
+| [0021](0021-mutual-fund-data-ingestion.md) | Mutual-fund NAV / holdings data — no data source anywhere (blocked chat `fund_search`/`fund_holdings`; agent plan 0007 Track 3 Ph 7) | `tantra_data` (funds) | — |
+| [0022](0022-ipo-calendar-and-subscription-ingestion.md) | IPO calendar & subscription data — no data source anywhere (blocked chat `ipo_calendar`/`ipo_subscription`; agent plan 0007 Track 3 Ph 8) | `tantra_data` (primary market) | — |
 
 ## Closed gaps
 
