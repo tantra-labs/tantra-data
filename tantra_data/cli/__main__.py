@@ -14,12 +14,16 @@ from tantra_data.cli.coverage import main as coverage_main
 from tantra_data.cli.export_bridge import main as export_bridge_main
 from tantra_data.cli.ingest_calendar import main as ingest_calendar_main
 from tantra_data.cli.ingest_fundamentals import main as ingest_fundamentals_main
+from tantra_data.cli.ingest_ipos import main as ingest_ipos_main
+from tantra_data.cli.ingest_mutual_funds import main as ingest_mutual_funds_main
 
 _COMMANDS = {
     "coverage": coverage_main,
     "export-bridge": export_bridge_main,
     "ingest-calendar": ingest_calendar_main,
     "ingest-fundamentals": ingest_fundamentals_main,
+    "ingest-ipos": ingest_ipos_main,
+    "ingest-mutual-funds": ingest_mutual_funds_main,
 }
 
 

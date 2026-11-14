@@ -309,6 +309,66 @@ class FundamentalsReader(Protocol):
         ...
 
 
+@runtime_checkable
+class MutualFundReader(Protocol):
+    """Read mutual-fund scheme metadata, NAV history, and returns (gap 0021)."""
+
+    def get_schemes(self, amc: str | None = None) -> pl.DataFrame:
+        """Scheme metadata, optionally filtered by AMC. Returns an exact-
+        ``Decimal`` Polars frame (scheme_code, scheme_name, amc, category,
+        isin_growth, isin_div_reinvestment, plan, option, as_of_date,
+        source)."""
+        ...
+
+    def get_nav_history(
+        self,
+        scheme_code: str | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ) -> pl.DataFrame:
+        """Per-scheme NAV history, optionally filtered by scheme/date window.
+        Returns an exact-``Decimal`` Polars frame (scheme_code, nav_date,
+        nav, repurchase_price, sale_price, source)."""
+        ...
+
+    def get_returns(
+        self,
+        scheme_code: str | None = None,
+        as_of: date | None = None,
+    ) -> pl.DataFrame:
+        """Derived return metrics, optionally filtered by scheme/as-of date.
+        Returns an exact-``Decimal`` Polars frame (scheme_code, as_of_date,
+        cagr_1y, expense_ratio, source)."""
+        ...
+
+
+@runtime_checkable
+class IpoReader(Protocol):
+    """Read IPO issues and subscription snapshots from the lakehouse (gap 0022)."""
+
+    def get_issues(
+        self,
+        status: str | None = None,
+        as_of: date | None = None,
+    ) -> pl.DataFrame:
+        """IPO issue metadata, optionally filtered by status/as-of date.
+        Returns an exact-``Decimal`` Polars frame (symbol, company_name,
+        board, status, open_date, close_date, listing_date, price_band_low,
+        price_band_high, issue_price, lot_size, issue_size_cr, as_of_date,
+        source)."""
+        ...
+
+    def get_subscriptions(
+        self,
+        symbol: str | None = None,
+        as_of: date | None = None,
+    ) -> pl.DataFrame:
+        """IPO subscription snapshots, optionally filtered by symbol/as-of
+        date. Returns an exact-``Decimal`` Polars frame (symbol, as_of_date,
+        qib, nii, bnii, snii, rii, total, source)."""
+        ...
+
+
 __all__ = [
     "BAR_SCHEMA",
     "BlockDeal",
@@ -323,8 +383,10 @@ __all__ = [
     "FundamentalsReader",
     "InstitutionalFlow",
     "InstitutionalFlowReader",
+    "IpoReader",
     "MacroReader",
     "MarketReader",
+    "MutualFundReader",
     "NewsArticle",
     "NewsReader",
     "ProfileReader",

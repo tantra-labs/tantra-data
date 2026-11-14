@@ -22,6 +22,11 @@ from tantra_data.adapters.filings_store import DuckDbFilingsStore
 from tantra_data.adapters.fundamental_ratios_store import DuckDbFundamentalRatiosStore
 from tantra_data.adapters.fundamental_statement_store import DuckDbFinancialStatementStore
 from tantra_data.adapters.institutional_flow_store import DuckDbInstitutionalFlowStore
+from tantra_data.adapters.ipo_store import DuckDbIpoStore
+from tantra_data.adapters.ipo_subscription_store import DuckDbIpoSubscriptionStore
+from tantra_data.adapters.mutual_fund_nav_store import DuckDbMutualFundNavStore
+from tantra_data.adapters.mutual_fund_return_store import DuckDbMutualFundReturnStore
+from tantra_data.adapters.mutual_fund_store import DuckDbMutualFundStore
 from tantra_data.adapters.news_store import DuckDbNewsStore
 from tantra_data.service.bridge_exporter import LakehouseBridgeExporter
 
@@ -57,6 +62,11 @@ def main(argv: list[str] | None = None) -> int:
             "economic-calendar",
             "fundamentals",
             "fundamental-ratios",
+            "mutual-funds",
+            "mf-nav",
+            "mf-returns",
+            "ipos",
+            "ipo-subscriptions",
             "all",
         ),
         default="all",
@@ -76,6 +86,11 @@ def main(argv: list[str] | None = None) -> int:
     calendar = DuckDbCalendarStore(str(db_path))
     fundamentals = DuckDbFinancialStatementStore(str(db_path))
     fundamental_ratios = DuckDbFundamentalRatiosStore(str(db_path))
+    mutual_funds = DuckDbMutualFundStore(str(db_path))
+    mf_nav = DuckDbMutualFundNavStore(str(db_path))
+    mf_returns = DuckDbMutualFundReturnStore(str(db_path))
+    ipos = DuckDbIpoStore(str(db_path))
+    ipo_subscriptions = DuckDbIpoSubscriptionStore(str(db_path))
     exporter = LakehouseBridgeExporter(
         filings,
         corporate_actions,
@@ -86,6 +101,11 @@ def main(argv: list[str] | None = None) -> int:
         calendar=calendar,
         fundamentals=fundamentals,
         fundamental_ratios=fundamental_ratios,
+        mutual_funds=mutual_funds,
+        mf_nav=mf_nav,
+        mf_returns=mf_returns,
+        ipos=ipos,
+        ipo_subscriptions=ipo_subscriptions,
     )
     try:
         if args.dataset in ("filings", "all"):
@@ -115,6 +135,21 @@ def main(argv: list[str] | None = None) -> int:
         if args.dataset in ("fundamental-ratios", "all"):
             n_ratios = exporter.export_fundamental_ratios(catalog_root)
             print(f"Exported {n_ratios} fundamental-ratios files")
+        if args.dataset in ("mutual-funds", "all"):
+            n_metas = exporter.export_mutual_funds(catalog_root)
+            print(f"Exported {n_metas} mutual-fund scheme files")
+        if args.dataset in ("mf-nav", "all"):
+            n_nav = exporter.export_mf_nav(catalog_root)
+            print(f"Exported {n_nav} mutual-fund NAV files")
+        if args.dataset in ("mf-returns", "all"):
+            n_returns = exporter.export_mf_returns(catalog_root)
+            print(f"Exported {n_returns} mutual-fund return files")
+        if args.dataset in ("ipos", "all"):
+            n_issues = exporter.export_ipos(catalog_root)
+            print(f"Exported {n_issues} IPO issue files")
+        if args.dataset in ("ipo-subscriptions", "all"):
+            n_subs = exporter.export_ipo_subscriptions(catalog_root)
+            print(f"Exported {n_subs} IPO subscription files")
         return 0
     except Exception as exc:
         print(f"export failed: {exc}", file=sys.stderr)
@@ -129,6 +164,11 @@ def main(argv: list[str] | None = None) -> int:
         calendar.close()
         fundamentals.close()
         fundamental_ratios.close()
+        mutual_funds.close()
+        mf_nav.close()
+        mf_returns.close()
+        ipos.close()
+        ipo_subscriptions.close()
 
 
 if __name__ == "__main__":

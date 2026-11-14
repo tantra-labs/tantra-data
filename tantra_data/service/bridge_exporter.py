@@ -2,19 +2,23 @@
 
 Implements the Python-side projection side of the one-bridge design (plan 0005):
 it serializes the existing DuckDB filings, corporate-actions, block/bulk-deal,
-news, institutional-flow, delivery, economic-calendar and fundamentals stores
-into per-date Parquet files under ``{root}/catalog/filings/``,
-``{root}/catalog/corporate_actions/``, ``{root}/catalog/block_deals/``,
-``{root}/catalog/news/``, ``{root}/catalog/institutional_flows/``,
-``{root}/catalog/delivery/``, ``{root}/catalog/economic_calendar/``,
-``{root}/catalog/fundamentals/`` and ``{root}/catalog/fundamental_ratios/``
+news, institutional-flow, delivery, economic-calendar, fundamentals,
+mutual-fund and IPO stores into per-date Parquet files under
+``{root}/catalog/filings/``, ``{root}/catalog/corporate_actions/``,
+``{root}/catalog/block_deals/``, ``{root}/catalog/news/``,
+``{root}/catalog/institutional_flows/``, ``{root}/catalog/delivery/``,
+``{root}/catalog/economic_calendar/``, ``{root}/catalog/fundamentals/``,
+``{root}/catalog/fundamental_ratios/``, ``{root}/catalog/mutual_funds/``,
+``{root}/catalog/mf_nav/``, ``{root}/catalog/mf_returns/``,
+``{root}/catalog/ipos/`` and ``{root}/catalog/ipo_subscriptions/``
 that the Rust runtime (``tantra-runtime-api-rest``) can ingest with its
 existing ``arrow``/``parquet`` deps, filtering
 ``filing_date <= as_of`` / ``ex_date <= as_of`` for point-in-time semantics.
 
 Covers gaps 0007 (filings), 0008 (corporate actions), 0005 (block/bulk-deal
 disclosure ingestion), 0006 (news ingestion), 0017/0018/0019 (institutional
-flows / economic calendar / delivery bridges) and 0020 (company fundamentals).
+flows / economic calendar / delivery bridges), 0020 (company fundamentals)
+and 0021/0022 (mutual funds / IPO primary market).
 Values keep their exact shapes: prices/ratios are preserved as exact
 ``Decimal`` via ``Decimal128(18, 4)``; no floats are introduced anywhere in
 the projection.
@@ -46,6 +50,8 @@ from tantra_data.domain.fundamentals import (
     StatementType,
 )
 from tantra_data.domain.institutional_flow import InstitutionalFlow
+from tantra_data.domain.ipos import IpoIssue, IpoSubscription
+from tantra_data.domain.mutual_funds import MutualFundMeta, MutualFundNav, MutualFundReturn
 from tantra_data.domain.news import NewsArticle
 
 __all__ = ["LakehouseBridgeExporter"]
@@ -170,6 +176,69 @@ class FundamentalRatiosRepository(Protocol):
     def close(self) -> None: ...
 
 
+class MutualFundsRepository(Protocol):
+    """Structural interface for the mutual-fund scheme store consumed by the bridge."""
+
+    def query(
+        self,
+        scheme_code: str | None = None,
+        as_of: date | None = None,
+        amc: str | None = None,
+    ) -> list[MutualFundMeta]: ...
+
+    def close(self) -> None: ...
+
+
+class MutualFundNavRepository(Protocol):
+    """Structural interface for the mutual-fund NAV store consumed by the bridge."""
+
+    def query(
+        self,
+        scheme_code: str | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ) -> list[MutualFundNav]: ...
+
+    def close(self) -> None: ...
+
+
+class MutualFundReturnRepository(Protocol):
+    """Structural interface for the mutual-fund return store consumed by the bridge."""
+
+    def query(
+        self,
+        scheme_code: str | None = None,
+        as_of: date | None = None,
+    ) -> list[MutualFundReturn]: ...
+
+    def close(self) -> None: ...
+
+
+class IposRepository(Protocol):
+    """Structural interface for the IPO issue store consumed by the bridge."""
+
+    def query(
+        self,
+        symbol: str | None = None,
+        status: str | None = None,
+        as_of: date | None = None,
+    ) -> list[IpoIssue]: ...
+
+    def close(self) -> None: ...
+
+
+class IpoSubscriptionsRepository(Protocol):
+    """Structural interface for the IPO subscription store consumed by the bridge."""
+
+    def query(
+        self,
+        symbol: str | None = None,
+        as_of: date | None = None,
+    ) -> list[IpoSubscription]: ...
+
+    def close(self) -> None: ...
+
+
 def _as_decimal128(value: Decimal | None) -> Decimal | None:
     """Quantize a value to the 4-dp ``Decimal128(18, 4)`` projection scale.
 
@@ -195,6 +264,11 @@ class LakehouseBridgeExporter:
         calendar: CalendarEventsRepository | None = None,
         fundamentals: FinancialStatementsRepository | None = None,
         fundamental_ratios: FundamentalRatiosRepository | None = None,
+        mutual_funds: MutualFundsRepository | None = None,
+        mf_nav: MutualFundNavRepository | None = None,
+        mf_returns: MutualFundReturnRepository | None = None,
+        ipos: IposRepository | None = None,
+        ipo_subscriptions: IpoSubscriptionsRepository | None = None,
     ) -> None:
         self._filings = filings
         self._corporate_actions = corporate_actions
@@ -205,6 +279,11 @@ class LakehouseBridgeExporter:
         self._calendar = calendar
         self._fundamentals = fundamentals
         self._fundamental_ratios = fundamental_ratios
+        self._mutual_funds = mutual_funds
+        self._mf_nav = mf_nav
+        self._mf_returns = mf_returns
+        self._ipos = ipos
+        self._ipo_subscriptions = ipo_subscriptions
 
     def export_filings(self, root: str | Path) -> int:
         """Write ``{root}/catalog/filings/<filing_date>.parquet`` per filing date.
@@ -559,6 +638,234 @@ class LakehouseBridgeExporter:
                 }
             )
             path = root / "fundamental_ratios" / f"{as_of_date.isoformat()}.parquet"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            pq.write_table(table, path, version="2.6")
+            count += 1
+        return count
+
+    def export_mutual_funds(self, root: str | Path) -> int:
+        """Write ``{root}/catalog/mutual_funds/<as_of_date>.parquet`` per date.
+
+        Scheme metadata is grouped by the NAV-dump date it was observed in
+        (``as_of_date``), preserving point-in-time semantics. Returns the
+        number of files written; returns 0 when no mutual-fund store is
+        configured.
+        """
+        if self._mutual_funds is None:
+            return 0
+        root = Path(root)
+        by_date: dict[date, list[MutualFundMeta]] = {}
+        for meta in self._mutual_funds.query():
+            by_date.setdefault(meta.as_of_date, []).append(meta)
+
+        count = 0
+        for as_of_date, metas in sorted(by_date.items()):
+            table = pa.Table.from_pydict(
+                {
+                    "as_of_date": pa.array([m.as_of_date for m in metas], type=pa.date32()),
+                    "scheme_code": pa.array([m.scheme_code for m in metas], type=pa.string()),
+                    "scheme_name": pa.array([m.scheme_name for m in metas], type=pa.string()),
+                    "amc": pa.array([m.amc for m in metas], type=pa.string()),
+                    "category": pa.array([m.category for m in metas], type=pa.string()),
+                    "isin_growth": pa.array([m.isin_growth for m in metas], type=pa.string()),
+                    "isin_div_reinvestment": pa.array(
+                        [m.isin_div_reinvestment for m in metas], type=pa.string()
+                    ),
+                    "plan": pa.array([m.plan for m in metas], type=pa.string()),
+                    "option": pa.array([m.option for m in metas], type=pa.string()),
+                    "source": pa.array([m.source for m in metas], type=pa.string()),
+                }
+            )
+            path = root / "mutual_funds" / f"{as_of_date.isoformat()}.parquet"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            pq.write_table(table, path, version="2.6")
+            count += 1
+        return count
+
+    def export_mf_nav(self, root: str | Path) -> int:
+        """Write ``{root}/catalog/mf_nav/<nav_date>.parquet`` per NAV date.
+
+        Per-scheme NAV observations are grouped by their disclosure date
+        (``nav_date``). NAV / repurchase / sale prices are exact
+        ``Decimal128(18, 4)``. Returns the number of files written; returns 0
+        when no NAV store is configured.
+        """
+        if self._mf_nav is None:
+            return 0
+        root = Path(root)
+        by_date: dict[date, list[MutualFundNav]] = {}
+        for nav in self._mf_nav.query():
+            by_date.setdefault(nav.nav_date, []).append(nav)
+
+        count = 0
+        for nav_date, navs in sorted(by_date.items()):
+            table = pa.Table.from_pydict(
+                {
+                    "nav_date": pa.array([n.nav_date for n in navs], type=pa.date32()),
+                    "scheme_code": pa.array([n.scheme_code for n in navs], type=pa.string()),
+                    "nav": pa.array(
+                        [_as_decimal128(n.nav) for n in navs], type=pa.decimal128(18, 4)
+                    ),
+                    "repurchase_price": pa.array(
+                        [_as_decimal128(n.repurchase_price) for n in navs],
+                        type=pa.decimal128(18, 4),
+                    ),
+                    "sale_price": pa.array(
+                        [_as_decimal128(n.sale_price) for n in navs],
+                        type=pa.decimal128(18, 4),
+                    ),
+                    "source": pa.array([n.source for n in navs], type=pa.string()),
+                }
+            )
+            path = root / "mf_nav" / f"{nav_date.isoformat()}.parquet"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            pq.write_table(table, path, version="2.6")
+            count += 1
+        return count
+
+    def export_mf_returns(self, root: str | Path) -> int:
+        """Write ``{root}/catalog/mf_returns/<as_of_date>.parquet`` per date.
+
+        Derived return metrics are grouped by ``as_of_date``. CAGR / expense
+        ratio are exact ``Decimal128(18, 4)`` (``None`` when not derivable or
+        not supplied by the vendor). Returns the number of files written;
+        returns 0 when no return store is configured.
+        """
+        if self._mf_returns is None:
+            return 0
+        root = Path(root)
+        by_date: dict[date, list[MutualFundReturn]] = {}
+        for returns in self._mf_returns.query():
+            by_date.setdefault(returns.as_of_date, []).append(returns)
+
+        count = 0
+        for as_of_date, records in sorted(by_date.items()):
+            table = pa.Table.from_pydict(
+                {
+                    "as_of_date": pa.array([r.as_of_date for r in records], type=pa.date32()),
+                    "scheme_code": pa.array([r.scheme_code for r in records], type=pa.string()),
+                    "cagr_1y": pa.array(
+                        [_as_decimal128(r.cagr_1y) for r in records],
+                        type=pa.decimal128(18, 4),
+                    ),
+                    "expense_ratio": pa.array(
+                        [_as_decimal128(r.expense_ratio) for r in records],
+                        type=pa.decimal128(18, 4),
+                    ),
+                    "source": pa.array([r.source for r in records], type=pa.string()),
+                }
+            )
+            path = root / "mf_returns" / f"{as_of_date.isoformat()}.parquet"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            pq.write_table(table, path, version="2.6")
+            count += 1
+        return count
+
+    def export_ipos(self, root: str | Path) -> int:
+        """Write ``{root}/catalog/ipos/<as_of_date>.parquet`` per snapshot date.
+
+        IPO issue metadata is grouped by the date it was observed
+        (``as_of_date``), preserving point-in-time semantics. Price bands, lot
+        sizes, and issue sizes are exact ``Decimal128(18, 4)``. Returns the
+        number of files written; returns 0 when no IPO store is configured.
+        """
+        if self._ipos is None:
+            return 0
+        root = Path(root)
+        by_date: dict[date, list[IpoIssue]] = {}
+        for issue in self._ipos.query():
+            by_date.setdefault(issue.as_of_date, []).append(issue)
+
+        count = 0
+        for as_of_date, issues in sorted(by_date.items()):
+            table = pa.Table.from_pydict(
+                {
+                    "as_of_date": pa.array([i.as_of_date for i in issues], type=pa.date32()),
+                    "symbol": pa.array([i.symbol for i in issues], type=pa.string()),
+                    "company_name": pa.array([i.company_name for i in issues], type=pa.string()),
+                    "board": pa.array([i.board for i in issues], type=pa.string()),
+                    "status": pa.array([i.status for i in issues], type=pa.string()),
+                    "open_date": pa.array([i.open_date for i in issues], type=pa.date32()),
+                    "close_date": pa.array([i.close_date for i in issues], type=pa.date32()),
+                    "listing_date": pa.array([i.listing_date for i in issues], type=pa.date32()),
+                    "price_band_low": pa.array(
+                        [_as_decimal128(i.price_band_low) for i in issues],
+                        type=pa.decimal128(18, 4),
+                    ),
+                    "price_band_high": pa.array(
+                        [_as_decimal128(i.price_band_high) for i in issues],
+                        type=pa.decimal128(18, 4),
+                    ),
+                    "issue_price": pa.array(
+                        [_as_decimal128(i.issue_price) for i in issues],
+                        type=pa.decimal128(18, 4),
+                    ),
+                    "lot_size": pa.array(
+                        [_as_decimal128(i.lot_size) for i in issues],
+                        type=pa.decimal128(18, 4),
+                    ),
+                    "issue_size_cr": pa.array(
+                        [_as_decimal128(i.issue_size_cr) for i in issues],
+                        type=pa.decimal128(18, 4),
+                    ),
+                    "source": pa.array([i.source for i in issues], type=pa.string()),
+                }
+            )
+            path = root / "ipos" / f"{as_of_date.isoformat()}.parquet"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            pq.write_table(table, path, version="2.6")
+            count += 1
+        return count
+
+    def export_ipo_subscriptions(self, root: str | Path) -> int:
+        """Write ``{root}/catalog/ipo_subscriptions/<as_of_date>.parquet`` per date.
+
+        Subscription multiples are grouped by snapshot date (``as_of_date``).
+        Multiples are exact ``Decimal128(18, 4)`` (``None`` when the exchange
+        had not reported the category). Returns the number of files written;
+        returns 0 when no subscription store is configured.
+        """
+        if self._ipo_subscriptions is None:
+            return 0
+        root = Path(root)
+        by_date: dict[date, list[IpoSubscription]] = {}
+        for subscription in self._ipo_subscriptions.query():
+            by_date.setdefault(subscription.as_of_date, []).append(subscription)
+
+        count = 0
+        for as_of_date, subscriptions in sorted(by_date.items()):
+            table = pa.Table.from_pydict(
+                {
+                    "as_of_date": pa.array([s.as_of_date for s in subscriptions], type=pa.date32()),
+                    "symbol": pa.array([s.symbol for s in subscriptions], type=pa.string()),
+                    "qib": pa.array(
+                        [_as_decimal128(s.qib) for s in subscriptions],
+                        type=pa.decimal128(18, 4),
+                    ),
+                    "nii": pa.array(
+                        [_as_decimal128(s.nii) for s in subscriptions],
+                        type=pa.decimal128(18, 4),
+                    ),
+                    "bnii": pa.array(
+                        [_as_decimal128(s.bnii) for s in subscriptions],
+                        type=pa.decimal128(18, 4),
+                    ),
+                    "snii": pa.array(
+                        [_as_decimal128(s.snii) for s in subscriptions],
+                        type=pa.decimal128(18, 4),
+                    ),
+                    "rii": pa.array(
+                        [_as_decimal128(s.rii) for s in subscriptions],
+                        type=pa.decimal128(18, 4),
+                    ),
+                    "total": pa.array(
+                        [_as_decimal128(s.total) for s in subscriptions],
+                        type=pa.decimal128(18, 4),
+                    ),
+                    "source": pa.array([s.source for s in subscriptions], type=pa.string()),
+                }
+            )
+            path = root / "ipo_subscriptions" / f"{as_of_date.isoformat()}.parquet"
             path.parent.mkdir(parents=True, exist_ok=True)
             pq.write_table(table, path, version="2.6")
             count += 1

@@ -32,9 +32,9 @@ overhaul.
 
 | [0015](0015-nse-trading-holiday-provider.md) | NSE trading-holiday provider — tantra-data owns the data (ledger plan 0005 T2.7 decision); runtime `NseTradingCalendar` still seeds its own holiday list | `tantra_data` (calendar) | — |
 | [0016](0016-intraday-option-chain-snapshot-lakehouse.md) | Intraday option-chain snapshot ingestion (OI/ΔOI/IV/delta/gamma) + point-in-time GEX/flip series — no lakehouse store or as-of reader exists (Elephant Edge EE+) | `tantra_data` (derivatives) | — |
-| [0020](0020-fundamentals-ingestion.md) | Company fundamentals / financial statements (ratios, income, balance sheet, cash flow) — no data source anywhere (blocked chat `fundamental_ratios`/`financial_statements`; agent plan 0007 Track 3 Ph 6) | `tantra_data` (fundamentals) | — |
-| [0021](0021-mutual-fund-data-ingestion.md) | Mutual-fund NAV / holdings data — no data source anywhere (blocked chat `fund_search`/`fund_holdings`; agent plan 0007 Track 3 Ph 7) | `tantra_data` (funds) | — |
-| [0022](0022-ipo-calendar-and-subscription-ingestion.md) | IPO calendar & subscription data — no data source anywhere (blocked chat `ipo_calendar`/`ipo_subscription`; agent plan 0007 Track 3 Ph 8) | `tantra_data` (primary market) | — |
+| [0020](0020-fundamentals-ingestion.md) | Company fundamentals / financial statements (ratios, income, balance sheet, cash flow) — no data source anywhere (blocked chat `fundamental_ratios`/`financial_statements`; agent plan 0007 Track 3 Ph 6) | `tantra_data` (fundamentals) | Open — Python side landed (`d94230c`); Rust bridge pending |
+| [0021](0021-mutual-fund-data-ingestion.md) | Mutual-fund NAV / holdings data — no data source anywhere (blocked chat `fund_search`/`fund_holdings`; agent plan 0007 Track 3 Ph 7) | `tantra_data` (funds) | Open — Python side landed (2026-11-14); Rust bridge + holdings source pending |
+| [0022](0022-ipo-calendar-and-subscription-ingestion.md) | IPO calendar & subscription data — no data source anywhere (blocked chat `ipo_calendar`/`ipo_subscription`; agent plan 0007 Track 3 Ph 8) | `tantra_data` (primary market) | Open — Python side landed (2026-11-14); Rust bridge pending |
 
 ## Closed gaps
 

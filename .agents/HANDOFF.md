@@ -1,6 +1,24 @@
 # `tantra-data` — Inter-Agent Handoff
 
 ## Phase / Slice Status
+* **Gaps 0021/0022 (Python side, 2026-11-14)**: mutual-fund (AMFI `NAVAll.txt`,
+  live-verified 14,455 rows) + IPO (NSE `ipo-current-issue`/`all-upcoming-issues`/
+  `public-past-issues`/`ipo-detail`, live-verified) ingestion landed:
+  providers `providers/mutual_funds.py` + `providers/ipos.py` (parse/fetch/ingest,
+  exact `Decimal` CAGR derivation for MFs), domains `domain/mutual_funds.py`
+  (`MutualFundMeta`/`MutualFundNav`/`MutualFundReturn`) + `domain/ipos.py`
+  (`IpoIssue`/`IpoSubscription`), 5 stores (`adapters/mutual_fund_store.py`,
+  `mutual_fund_nav_store.py`, `mutual_fund_return_store.py`, `ipo_store.py`,
+  `ipo_subscription_store.py`), readers `service/mutual_funds_reader.py` +
+  `service/ipos_reader.py` (`Decimal(18,4)` frames), CLIs
+  `cli/ingest_mutual_funds.py` + `cli/ingest_ipos.py`, bridge export
+  `export_mutual_funds`/`export_mf_nav`/`export_mf_returns` →
+  `catalog/mutual_funds|mf_nav|mf_returns/` + `export_ipos`/
+  `export_ipo_subscriptions` → `catalog/ipos|ipo_subscriptions/` (exact
+  `Decimal128(18,4)`). 31 new tests (17 MF + 14 IPO); full `pytest` 190 green;
+  ruff + mypy clean. Gap docs stay OPEN: Rust projection readers are the
+  orchestrator slice, and **MF holdings have no verified live source** (not
+  fabricated).
 * **Gap 0020 fundamentals (Python side, 2026-11-14)**: yfinance vendor
   `providers/fundamentals.py` (parse/rows/fetch/ingest; `FinancialStatement` +
   `FinancialRatios` domain; exact `Decimal`; live-verified `RELIANCE.NS`), stores
@@ -131,10 +149,14 @@
   clean. Both gap docs moved to Closed Gaps; plan 0002 moved to Implemented Plans.
 
 ## Immediate Next Step
-* Close gap 0020: Rust `tantra-market-store` fundamentals projection reader over
+* Close gaps 0020/0021/0022: Rust `tantra-market-store` projection readers over
   `catalog/fundamentals/*.parquet` + `catalog/fundamental_ratios/*.parquet`
+  (fundamentals), `catalog/mutual_funds|mf_nav|mf_returns/*.parquet` (mutual
+  funds), and `catalog/ipos|ipo_subscriptions/*.parquet` (IPO)
   (`FeedMarketReader::with_fundamentals` style, per gaps 0017/0018/0019), then
-  wire `fundamental_ratios`/`financial_statements` chat tools and close the gap doc.
+  wire `fundamental_ratios`/`financial_statements`, `fund_search` and
+  `ipo_calendar`/`ipo_subscription` chat tools and close the gap docs. MF
+  `fund_holdings` additionally needs a live-verified holdings source first.
 * `tantra-ui-web`: Proceed with gap 0011 (wire sparklines to `GET /bars/{id}`) against verified
   catalog data; for plan 0007 / gap 0024 (Risk tab), either use option (b) local equity curve or
   schedule index ingestion in `tantra-data`.

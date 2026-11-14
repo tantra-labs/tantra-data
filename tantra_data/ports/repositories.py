@@ -25,7 +25,9 @@ from tantra_data.domain.fundamentals import (
     StatementType,
 )
 from tantra_data.domain.institutional_flow import InstitutionalFlow
+from tantra_data.domain.ipos import IpoIssue, IpoSubscription
 from tantra_data.domain.macro import MacroObservation
+from tantra_data.domain.mutual_funds import MutualFundMeta, MutualFundNav, MutualFundReturn
 from tantra_data.domain.news import NewsArticle
 from tantra_data.domain.profile import SymbolProfile
 
@@ -279,6 +281,96 @@ class DeliveryRepository(Protocol):
 
 
 @runtime_checkable
+class MutualFundMetaRepository(Protocol):
+    """Storage for mutual-fund scheme metadata (gap 0021)."""
+
+    def upsert(self, meta: MutualFundMeta) -> None:
+        """Insert or replace scheme metadata (idempotent on scheme_code + as_of_date)."""
+        ...
+
+    def query(
+        self,
+        scheme_code: str | None = None,
+        as_of: date | None = None,
+        amc: str | None = None,
+    ) -> list[MutualFundMeta]:
+        """Return scheme metadata, optionally filtered; ``as_of`` filters on
+        ``as_of_date <= as_of`` (no look-ahead)."""
+        ...
+
+
+@runtime_checkable
+class MutualFundNavRepository(Protocol):
+    """Storage for per-scheme daily NAV history (gap 0021)."""
+
+    def upsert(self, nav: MutualFundNav) -> None:
+        """Insert or replace a NAV observation (idempotent on scheme_code + nav_date)."""
+        ...
+
+    def query(
+        self,
+        scheme_code: str | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ) -> list[MutualFundNav]:
+        """Return NAV observations, optionally filtered by scheme / date window."""
+        ...
+
+
+@runtime_checkable
+class MutualFundReturnRepository(Protocol):
+    """Storage for derived mutual-fund return metrics (gap 0021)."""
+
+    def upsert(self, returns: MutualFundReturn) -> None:
+        """Insert or replace a return record (idempotent on scheme_code + as_of_date)."""
+        ...
+
+    def query(
+        self,
+        scheme_code: str | None = None,
+        as_of: date | None = None,
+    ) -> list[MutualFundReturn]:
+        """Return derived-return records, optionally filtered by scheme / as-of date."""
+        ...
+
+
+@runtime_checkable
+class IpoRepository(Protocol):
+    """Storage for IPO issue metadata (gap 0022)."""
+
+    def upsert(self, issue: IpoIssue) -> None:
+        """Insert or replace an issue (idempotent on symbol + as_of_date)."""
+        ...
+
+    def query(
+        self,
+        symbol: str | None = None,
+        status: str | None = None,
+        as_of: date | None = None,
+    ) -> list[IpoIssue]:
+        """Return issues, optionally filtered; ``as_of`` filters on
+        ``as_of_date <= as_of`` (no look-ahead)."""
+        ...
+
+
+@runtime_checkable
+class IpoSubscriptionRepository(Protocol):
+    """Storage for IPO subscription snapshots (gap 0022)."""
+
+    def upsert(self, subscription: IpoSubscription) -> None:
+        """Insert or replace a snapshot (idempotent on symbol + as_of_date)."""
+        ...
+
+    def query(
+        self,
+        symbol: str | None = None,
+        as_of: date | None = None,
+    ) -> list[IpoSubscription]:
+        """Return subscription snapshots, optionally filtered by symbol / as-of date."""
+        ...
+
+
+@runtime_checkable
 class DataService(Protocol):
     """Unified, look-ahead-bias-free data facade."""
 
@@ -304,7 +396,12 @@ __all__ = [
     "FundamentalRatiosRepository",
     "FundamentalsRepository",
     "InstitutionalFlowRepository",
+    "IpoRepository",
+    "IpoSubscriptionRepository",
     "MacroSeriesRepository",
+    "MutualFundMetaRepository",
+    "MutualFundNavRepository",
+    "MutualFundReturnRepository",
     "NewsRepository",
     "ProfileRepository",
 ]
