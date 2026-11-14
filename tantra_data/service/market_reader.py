@@ -89,7 +89,8 @@ class LakehouseMarketReader:
     ) -> pl.DataFrame:
         """Technical indicator values (SMA / EMA over close) for ``instrument``."""
         params = params or {}
-        window = int(params.get("window", 20))
+        raw_window = params.get("window", 20)
+        window = int(str(raw_window)) if raw_window is not None else 20
         bars = self._frame(instrument, start, end, interval="1d")
         if bars.is_empty() or "close" not in bars.columns:
             return pl.DataFrame(schema={"ts": pl.Datetime("us"), indicator: pl.Float64()})

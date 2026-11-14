@@ -12,11 +12,15 @@ from typing import Protocol, runtime_checkable
 
 import polars as pl
 
+from tantra_data.domain.block_deals import BlockDeal
 from tantra_data.domain.calendar import CalendarEvent
 from tantra_data.domain.corporate_actions import CorporateAction
-from tantra_data.domain.filings import Filing
+from tantra_data.domain.delivery import DeliveryRecord
+from tantra_data.domain.filings import Filing, FilingType
 from tantra_data.domain.fundamentals import FundamentalRecord
+from tantra_data.domain.institutional_flow import InstitutionalFlow
 from tantra_data.domain.macro import MacroObservation
+from tantra_data.domain.news import NewsArticle
 from tantra_data.domain.profile import SymbolProfile
 
 # Canonical bar schema for the Parquet catalog. All financial columns are
@@ -77,6 +81,7 @@ class CatalogRepository(Protocol):
         instrument: str,
         start: date | None = None,
         end: date | None = None,
+        interval: str = "1d",
     ) -> pl.DataFrame:
         """Read bars sorted by timestamp, optionally filtered to a window."""
         ...
@@ -113,7 +118,7 @@ class FilingsRepository(Protocol):
         instrument: str | None = None,
         start_date: date | None = None,
         end_date: date | None = None,
-        filing_type: str | None = None,
+        filing_type: FilingType | None = None,
     ) -> list[Filing]:
         """Return filings, optionally filtered by instrument/date/type."""
         ...
@@ -158,6 +163,78 @@ class ProfileRepository(Protocol):
 
 
 @runtime_checkable
+class BlockDealsRepository(Protocol):
+    """Storage for NSE block/bulk deal disclosures."""
+
+    def upsert(self, deal: BlockDeal) -> None:
+        """Persist a deal idempotently (same trade_date+instrument+client_name+side)."""
+        ...
+
+    def query(
+        self,
+        trade_date: date | None = None,
+        instrument: str | None = None,
+        category: str | None = None,
+    ) -> list[BlockDeal]:
+        """Return deals, optionally filtered by date/instrument/category (block|bulk)."""
+        ...
+
+
+@runtime_checkable
+class NewsRepository(Protocol):
+    """Storage for financial news articles."""
+
+    def upsert(self, article: NewsArticle) -> None:
+        """Persist an article idempotently (same url)."""
+        ...
+
+    def query(
+        self,
+        instrument: str | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        query: str | None = None,
+    ) -> list[NewsArticle]:
+        """Return articles, optionally filtered by instrument/date window/text query."""
+        ...
+
+
+@runtime_checkable
+class InstitutionalFlowRepository(Protocol):
+    """Storage for daily FII/DII institutional net-flow records."""
+
+    def upsert(self, flow: InstitutionalFlow) -> None:
+        """Persist a flow record idempotently (same trade_date+participant+segment)."""
+        ...
+
+    def query(
+        self,
+        trade_date: date | None = None,
+        participant: str | None = None,
+        segment: str | None = None,
+    ) -> list[InstitutionalFlow]:
+        """Return flow records, optionally filtered by date/participant/segment."""
+        ...
+
+
+@runtime_checkable
+class DeliveryRepository(Protocol):
+    """Storage for per-symbol daily delivery records."""
+
+    def upsert(self, record: DeliveryRecord) -> None:
+        """Persist a delivery record idempotently (same trade_date+instrument)."""
+        ...
+
+    def query(
+        self,
+        trade_date: date | None = None,
+        instrument: str | None = None,
+    ) -> list[DeliveryRecord]:
+        """Return delivery records, optionally filtered by date/instrument."""
+        ...
+
+
+@runtime_checkable
 class DataService(Protocol):
     """Unified, look-ahead-bias-free data facade."""
 
@@ -172,12 +249,16 @@ class DataService(Protocol):
 
 
 __all__ = [
+    "BlockDealsRepository",
     "CalendarRepository",
     "CatalogRepository",
     "CorporateActionsRepository",
     "DataService",
+    "DeliveryRepository",
     "FilingsRepository",
     "FundamentalsRepository",
+    "InstitutionalFlowRepository",
     "MacroSeriesRepository",
+    "NewsRepository",
     "ProfileRepository",
 ]

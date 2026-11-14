@@ -18,6 +18,7 @@ from tantra_data.adapters import (
     DuckDbProfileStore,
     ParquetCatalog,
 )
+from tantra_data.domain.block_deals import BlockDeal
 from tantra_data.domain.calendar import CalendarEvent
 from tantra_data.domain.corporate_actions import (
     Bonus,
@@ -36,16 +37,23 @@ from tantra_data.domain.coverage import (
     CoverageReport,
     InstrumentCoverage,
 )
+from tantra_data.domain.delivery import DeliveryRecord
 from tantra_data.domain.filings import Filing, FilingType
 from tantra_data.domain.fundamentals import FundamentalRecord
+from tantra_data.domain.institutional_flow import InstitutionalFlow
 from tantra_data.domain.macro import MacroObservation
+from tantra_data.domain.news import NewsArticle
 from tantra_data.domain.profile import SymbolProfile
 from tantra_data.ports.data_feeds import (
+    BlockDealsReader,
     CalendarReader,
     ComparisonOp,
+    DeliveryReader,
     FilingsReader,
+    InstitutionalFlowReader,
     MacroReader,
     MarketReader,
+    NewsReader,
     ProfileReader,
     ReferenceExporter,
     ScreenCondition,
@@ -55,9 +63,13 @@ from tantra_data.ports.data_feeds import (
     ScreenValue,
 )
 from tantra_data.ports.repositories import (
+    BlockDealsRepository,
     CalendarRepository,
+    DeliveryRepository,
     FilingsRepository,
+    InstitutionalFlowRepository,
     MacroSeriesRepository,
+    NewsRepository,
     ProfileRepository,
 )
 from tantra_data.providers.bhavcopy import (
@@ -65,6 +77,13 @@ from tantra_data.providers.bhavcopy import (
     parse_bhavcopy,
     read_bhavcopy,
     rows_to_bars,
+)
+from tantra_data.providers.block_deals import (
+    parse_block_deals,
+    parse_bulk_deals,
+    read_block_deals,
+    read_bulk_deals,
+    rows_to_deals,
 )
 from tantra_data.providers.calendar import (
     CalendarRow,
@@ -79,6 +98,11 @@ from tantra_data.providers.filings import (
     read_filings,
     rows_to_filings,
 )
+from tantra_data.providers.institutional_flow import (
+    parse_institutional_flows,
+    read_institutional_flows,
+    rows_to_flows,
+)
 from tantra_data.providers.macro import (
     MacroRow,
     parse_macro,
@@ -91,9 +115,11 @@ from tantra_data.providers.profile import (
     rows_to_profiles,
     yfinance_available,
 )
+from tantra_data.service.block_deals_reader import PythonBlockDealsReader
 from tantra_data.service.calendar_reader import LakehouseCalendarReader
 from tantra_data.service.data_service import TantraDataService
 from tantra_data.service.filings_reader import LakehouseFilingsReader
+from tantra_data.service.institutional_flow_reader import PythonInstitutionalFlowReader
 from tantra_data.service.macro_reader import PythonMacroReader
 from tantra_data.service.market_reader import LakehouseMarketReader
 from tantra_data.service.profile_reader import LakehouseProfileReader
@@ -105,6 +131,9 @@ __version__ = "0.1.0"
 __all__ = [
     "VYAAPAAR_AVAILABLE",
     "BhavcopyRow",
+    "BlockDeal",
+    "BlockDealsReader",
+    "BlockDealsRepository",
     "Bonus",
     "CalendarEvent",
     "CalendarReader",
@@ -117,6 +146,9 @@ __all__ = [
     "CoverageEntry",
     "CoverageLedger",
     "CoverageReport",
+    "DeliveryReader",
+    "DeliveryRecord",
+    "DeliveryRepository",
     "Dividend",
     "DuckDbCalendarStore",
     "DuckDbCorporateActionsStore",
@@ -131,6 +163,9 @@ __all__ = [
     "FilingsRepository",
     "FundamentalRecord",
     "InMemoryReferenceExporter",
+    "InstitutionalFlow",
+    "InstitutionalFlowReader",
+    "InstitutionalFlowRepository",
     "InstrumentCoverage",
     "LakehouseCalendarReader",
     "LakehouseFilingsReader",
@@ -141,10 +176,15 @@ __all__ = [
     "MacroRow",
     "MacroSeriesRepository",
     "MarketReader",
+    "NewsArticle",
+    "NewsReader",
+    "NewsRepository",
     "ParquetCatalog",
     "ProfileReader",
     "ProfileRepository",
     "ProfileRow",
+    "PythonBlockDealsReader",
+    "PythonInstitutionalFlowReader",
     "PythonMacroReader",
     "ReferenceExporter",
     "Rights",
@@ -155,22 +195,30 @@ __all__ = [
     "ScreenerReader",
     "Split",
     "SymbolProfile",
-    "VectorizedScreener",
     "TantraDataService",
+    "VectorizedScreener",
     "__version__",
     "fetch_symbol_profiles",
     "from_record",
     "parse_bhavcopy",
+    "parse_block_deals",
+    "parse_bulk_deals",
     "parse_calendar",
     "parse_filings",
+    "parse_institutional_flows",
     "parse_macro",
     "read_bhavcopy",
+    "read_block_deals",
+    "read_bulk_deals",
     "read_calendar",
     "read_filings",
+    "read_institutional_flows",
     "read_macro",
     "rows_to_bars",
+    "rows_to_deals",
     "rows_to_events",
     "rows_to_filings",
+    "rows_to_flows",
     "rows_to_observations",
     "rows_to_profiles",
     "stubbed_calendar_rows",

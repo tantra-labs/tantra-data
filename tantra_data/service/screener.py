@@ -67,7 +67,8 @@ class VectorizedScreener:
             scored.append((instrument, score))
             frames[instrument] = candles
 
-        descending = bool(query.order_by) and query.order_by.strip().upper().endswith("DESC")
+        order_by = query.order_by
+        descending = order_by is not None and order_by.strip().upper().endswith("DESC")
         scored.sort(
             key=lambda item: (
                 item[1] is None,

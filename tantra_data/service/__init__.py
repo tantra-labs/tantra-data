@@ -19,6 +19,6 @@ __all__ = [
     "LakehouseProfileReader",
     "PythonMacroReader",
     "ReferenceExporter",
-    "VectorizedScreener",
     "TantraDataService",
+    "VectorizedScreener",
 ]

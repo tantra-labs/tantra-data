@@ -23,7 +23,11 @@ from typing import Protocol, runtime_checkable
 
 import polars as pl
 
+from tantra_data.domain.block_deals import BlockDeal
 from tantra_data.domain.calendar import CalendarEvent
+from tantra_data.domain.delivery import DeliveryRecord
+from tantra_data.domain.institutional_flow import InstitutionalFlow
+from tantra_data.domain.news import NewsArticle
 from tantra_data.domain.profile import SymbolProfile
 from tantra_data.ports.repositories import BAR_SCHEMA, CatalogRepository
 
@@ -211,15 +215,88 @@ class ProfileReader(Protocol):
         ...
 
 
+@runtime_checkable
+class BlockDealsReader(Protocol):
+    """Read NSE block/bulk deal disclosures from the lakehouse."""
+
+    def list_deals(
+        self,
+        trade_date: date | None = None,
+        instrument: str | None = None,
+        category: str | None = None,
+    ) -> pl.DataFrame:
+        """Deals over ``[from_date, to_date]``, optionally filtered by
+        instrument or category (``block`` | ``bulk``). Returns an exact-
+        ``Decimal`` Polars frame."""
+        ...
+
+
+@runtime_checkable
+class NewsReader(Protocol):
+    """Read financial news articles from the lakehouse."""
+
+    def search_news(
+        self,
+        query: str | None = None,
+        instrument: str | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        limit: int | None = None,
+    ) -> pl.DataFrame:
+        """Articles, optionally filtered by text query / instrument / date
+        window. Returns a Polars frame (id, title, source, url,
+        published_at, summary, instrument mentions)."""
+        ...
+
+
+@runtime_checkable
+class InstitutionalFlowReader(Protocol):
+    """Read daily FII/DII institutional net-flow records from the lakehouse."""
+
+    def get_flows(
+        self,
+        trade_date: date | None = None,
+        participant: str | None = None,
+        segment: str | None = None,
+    ) -> pl.DataFrame:
+        """Flow records, optionally filtered by date/participant/segment.
+        Returns an exact-``Decimal`` Polars frame (trade_date, participant,
+        segment, gross_buy, gross_sell, net)."""
+        ...
+
+
+@runtime_checkable
+class DeliveryReader(Protocol):
+    """Read per-symbol daily delivery records from the lakehouse."""
+
+    def get_delivery(
+        self,
+        trade_date: date | None = None,
+        instrument: str | None = None,
+    ) -> pl.DataFrame:
+        """Delivery records, optionally filtered by date/instrument. Returns
+        an exact-``Decimal`` Polars frame (trade_date, instrument,
+        traded_quantity, deliverable_quantity, delivery_pct)."""
+        ...
+
+
 __all__ = [
     "BAR_SCHEMA",
+    "BlockDeal",
+    "BlockDealsReader",
     "CalendarEvent",
     "CalendarReader",
     "CatalogRepository",
     "ComparisonOp",
+    "DeliveryReader",
+    "DeliveryRecord",
     "FilingsReader",
+    "InstitutionalFlow",
+    "InstitutionalFlowReader",
     "MacroReader",
     "MarketReader",
+    "NewsArticle",
+    "NewsReader",
     "ProfileReader",
     "ReferenceExporter",
     "ScreenCondition",
