@@ -8,6 +8,13 @@ Columns (official NSE header)::
     SYMBOL,SERIES,DATE,PREV_CLOSE,OPEN_PRICE,HIGH_PRICE,LOW_PRICE,LAST_PRICE,
     CLOSE_PRICE,AVERAGE_PRICE,TOTAL_TRADED_QUANTITY,TURNOVER_LACS,NO_OF_TRADES,
     DELIVERABLE_QTY,% DLVY TO QTY
+
+The live NSE archive (``sec_bhavdata_full_*.csv``) renames several columns
+(``DATE`` -> ``DATE1``, ``AVERAGE_PRICE`` -> ``AVG_PRICE``,
+``TOTAL_TRADED_QUANTITY`` -> ``TTL_TRD_QNTY``, ``DELIVERABLE_QTY`` ->
+``DELIV_QTY``, ``% DLVY TO QTY`` -> ``DELIV_PER``) and uses ``", "``
+separators.  :func:`parse_bhavcopy` accepts both layouts and treats ``-`` in
+the delivery columns as "no delivery data".
 """
 
 from __future__ import annotations
@@ -77,8 +84,34 @@ def _date(text: str, field: str) -> date:
         raise ValueError(f"invalid {field!r} date in bhavcopy: {text!r}") from exc
 
 
+def _col(raw: dict[str, str], *names: str) -> str:
+    """Return the value of the first column alias present in ``raw``."""
+    for name in names:
+        if name in raw:
+            return raw[name]
+    raise KeyError(f"missing bhavcopy column(s): {names!r}")
+
+
+def _deliverable_qty(text: str) -> int:
+    text = text.strip()
+    if text in ("", "-"):
+        return 0
+    return int(text)
+
+
+def _deliverable_pct(text: str) -> Decimal | None:
+    text = text.strip()
+    if text in ("", "-"):
+        return None
+    return _decimal(text, "% DLVY TO QTY")
+
+
 def parse_bhavcopy(text: str) -> list[BhavcopyRow]:
-    """Parse raw bhavcopy text into typed rows (header is mandatory)."""
+    """Parse raw bhavcopy text into typed rows (header is mandatory).
+
+    Accepts both the legacy NSE header and the live archive header (renamed
+    columns, ``", "`` separators, and ``-`` delivery placeholders).
+    """
     reader = csv.DictReader(line for line in text.splitlines() if line.strip())
     if reader.fieldnames is None or not reader.fieldnames:
         raise ValueError("bhavcopy is empty or missing a header")
@@ -86,25 +119,26 @@ def parse_bhavcopy(text: str) -> list[BhavcopyRow]:
     for raw in reader:
         if not any(raw.values()):
             continue
+        # The live NSE file uses ", " separators: strip whitespace from every
+        # fieldname so the legacy/live column aliases below resolve either way.
+        raw = {k.strip(): v for k, v in raw.items()}
         rows.append(
             BhavcopyRow(
-                symbol=raw["SYMBOL"].strip(),
-                series=raw["SERIES"].strip(),
-                trade_date=_date(raw["DATE"], "DATE"),
-                prev_close=_decimal(raw["PREV_CLOSE"], "PREV_CLOSE"),
-                open=_decimal(raw["OPEN_PRICE"], "OPEN_PRICE"),
-                high=_decimal(raw["HIGH_PRICE"], "HIGH_PRICE"),
-                low=_decimal(raw["LOW_PRICE"], "LOW_PRICE"),
-                last=_decimal(raw["LAST_PRICE"], "LAST_PRICE"),
-                close=_decimal(raw["CLOSE_PRICE"], "CLOSE_PRICE"),
-                average_price=_decimal(raw["AVERAGE_PRICE"], "AVERAGE_PRICE"),
-                total_traded_quantity=int(raw["TOTAL_TRADED_QUANTITY"]),
-                turnover_lacs=_decimal(raw["TURNOVER_LACS"], "TURNOVER_LACS"),
-                no_of_trades=int(raw["NO_OF_TRADES"]),
-                deliverable_qty=int(raw["DELIVERABLE_QTY"]),
-                deliverable_pct=_decimal(raw["% DLVY TO QTY"], "% DLVY TO QTY")
-                if raw.get("% DLVY TO QTY", "").strip()
-                else None,
+                symbol=_col(raw, "SYMBOL").strip(),
+                series=_col(raw, "SERIES").strip(),
+                trade_date=_date(_col(raw, "DATE", "DATE1"), "DATE"),
+                prev_close=_decimal(_col(raw, "PREV_CLOSE"), "PREV_CLOSE"),
+                open=_decimal(_col(raw, "OPEN_PRICE"), "OPEN_PRICE"),
+                high=_decimal(_col(raw, "HIGH_PRICE"), "HIGH_PRICE"),
+                low=_decimal(_col(raw, "LOW_PRICE"), "LOW_PRICE"),
+                last=_decimal(_col(raw, "LAST_PRICE"), "LAST_PRICE"),
+                close=_decimal(_col(raw, "CLOSE_PRICE"), "CLOSE_PRICE"),
+                average_price=_decimal(_col(raw, "AVERAGE_PRICE", "AVG_PRICE"), "AVERAGE_PRICE"),
+                total_traded_quantity=int(_col(raw, "TOTAL_TRADED_QUANTITY", "TTL_TRD_QNTY")),
+                turnover_lacs=_decimal(_col(raw, "TURNOVER_LACS"), "TURNOVER_LACS"),
+                no_of_trades=int(_col(raw, "NO_OF_TRADES")),
+                deliverable_qty=_deliverable_qty(_col(raw, "DELIVERABLE_QTY", "DELIV_QTY")),
+                deliverable_pct=_deliverable_pct(_col(raw, "% DLVY TO QTY", "DELIV_PER")),
             )
         )
     return rows
@@ -142,3 +176,30 @@ def rows_to_bars(rows: list[BhavcopyRow], instrument_prefix: str = "NSE:") -> pl
         pl.col("volume").cast(pl.Int64()),
     )
     return df.sort("ts")
+
+
+def fetch_bhavcopy(date_text: str) -> list[BhavcopyRow]:
+    """Fetch and parse the NSE bhavcopy archive for ``date_text`` (``YYYY-MM-DD``).
+
+    The ``requests`` client is imported lazily so the parser itself stays
+    dependency-free for offline use.  Raises :class:`RuntimeError` when the
+    archive responds with a non-200 status (e.g. no file for a non-trading day).
+    """
+    import requests
+
+    day = datetime.strptime(date_text, "%Y-%m-%d").date()
+    stamp = day.strftime("%d%m%Y")
+    url = f"https://archives.nseindia.com/products/content/sec_bhavdata_full_{stamp}.csv"
+    response = requests.get(url, timeout=30)
+    if response.status_code != 200:
+        raise RuntimeError(f"bhavcopy fetch failed for {date_text}: HTTP {response.status_code}")
+    return parse_bhavcopy(response.text)
+
+
+__all__ = [
+    "BhavcopyRow",
+    "fetch_bhavcopy",
+    "parse_bhavcopy",
+    "read_bhavcopy",
+    "rows_to_bars",
+]

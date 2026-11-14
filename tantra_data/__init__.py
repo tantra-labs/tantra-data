@@ -74,6 +74,7 @@ from tantra_data.ports.repositories import (
 )
 from tantra_data.providers.bhavcopy import (
     BhavcopyRow,
+    fetch_bhavcopy,
     parse_bhavcopy,
     read_bhavcopy,
     rows_to_bars,
@@ -136,6 +137,7 @@ from tantra_data.providers.profile import (
     yfinance_available,
 )
 from tantra_data.service.block_deals_reader import PythonBlockDealsReader
+from tantra_data.service.bridge_exporter import LakehouseBridgeExporter
 from tantra_data.service.calendar_reader import LakehouseCalendarReader
 from tantra_data.service.data_service import TantraDataService
 from tantra_data.service.delivery_reader import PythonDeliveryReader
@@ -189,6 +191,7 @@ __all__ = [
     "InstitutionalFlowReader",
     "InstitutionalFlowRepository",
     "InstrumentCoverage",
+    "LakehouseBridgeExporter",
     "LakehouseCalendarReader",
     "LakehouseFilingsReader",
     "LakehouseMarketReader",
@@ -223,6 +226,7 @@ __all__ = [
     "VectorizedScreener",
     "__version__",
     "events_to_rows",
+    "fetch_bhavcopy",
     "fetch_forex_factory",
     "fetch_symbol_profiles",
     "from_record",
