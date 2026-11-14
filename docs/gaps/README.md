@@ -30,16 +30,6 @@ overhaul.
 
 ## Open gaps
 
-| [0004](0004-catalog-seeded-from-honba-kao-ad-hoc-copy.md) | `data/catalog/` NSE daily bars seeded via ad-hoc copy from honba-kao, not tantra-data's own ingestion pipeline | `data/catalog/1D`, `data/catalog/5M` | [0006](../plans/0006-lakehouse-ingestion-completeness.md) |
-| [0005](0005-block-bulk-deal-disclosure-ingestion.md) | Block & bulk deal disclosure ingestion — no data source, port, or reader exists | `tantra_data` (reference) | [0004](../plans/0004-content-and-disclosure-ingestion.md) |
-| [0006](0006-news-ingestion.md) | News article ingestion — no data source, port, or reader exists (blocks chat `news_search` tool) | `tantra_data` (reference) | [0004](../plans/0004-content-and-disclosure-ingestion.md) |
-| [0007](0007-filings-rust-bridge.md) | Filings data is Python-side only — no `tantra-data` → Rust consumer bridge (blocks chat `filings_search` tool) | `tantra_data` (filings) | [0005](../plans/0005-rust-data-bridge.md) |
-| [0008](0008-corporate-actions-rust-bridge.md) | Corporate-actions data is Python-side only — no `tantra-data` → Rust consumer bridge (blocks chat `corporate_actions` tool) | `tantra_data` (corporate actions) | [0005](../plans/0005-rust-data-bridge.md) |
-| [0009](0009-corporate-actions-ingestion.md) | Corporate-actions DuckDB store has no automatic ingestion — population is manual/test-seeded today | `tantra_data` (corporate actions) | [0006](../plans/0006-lakehouse-ingestion-completeness.md) |
-| [0010](0010-economic-calendar-ingestion.md) | Economic/earnings/dividends/splits/IPO calendar ingestion — reader/port/store implemented, real vendor source not selected | `tantra_data` (calendar) | [0003](../plans/0003-calendar-and-reference-data.md) |
-| [0012](0012-calendar-stubbed-data.md) | Calendar data stubbed pending external source decision | `tantra_data` (calendar) | [0003](../plans/0003-calendar-and-reference-data.md) |
-| [0013](0013-fii-dii-institutional-flow-ingestion.md) | FII/DII daily institutional net-flow ingestion — no data source, port, or reader exists | `tantra_data` (reference) | — |
-| [0014](0014-delivery-percentage-ingestion.md) | Delivery percentage / delivery-adjusted volume ingestion — no data source, port, reader, or DTO field exists | `tantra_data` (reference) | — |
 | [0015](0015-nse-trading-holiday-provider.md) | NSE trading-holiday provider — tantra-data owns the data (ledger plan 0005 T2.7 decision); runtime `NseTradingCalendar` still seeds its own holiday list | `tantra_data` (calendar) | — |
 | [0016](0016-intraday-option-chain-snapshot-lakehouse.md) | Intraday option-chain snapshot ingestion (OI/ΔOI/IV/delta/gamma) + point-in-time GEX/flip series — no lakehouse store or as-of reader exists (Elephant Edge EE+) | `tantra_data` (derivatives) | — |
 
@@ -50,4 +40,14 @@ overhaul.
 | 0001 | Parquet catalog coverage verified for downstream consumers (`tantra-runtime`'s `/bars` endpoint, `tantra-ui-web`'s Risk tab/sparklines) | `tantra_data` (catalog) |
 | 0002 | Macro series ingestion stub (`PythonMacroReader` returns empty) | `tantra_data.service.macro_reader` | Closed in `c08710d` (macro series ingestion behind `PythonMacroReader`) |
 | 0003 | Filings ingestion & expanded economic series breadth | `tantra-data` (macro + filings) | Closed in `c08710d` (filings ingestion behind `FilingsReader`/`LakehouseFilingsReader`) |
+| 0004 | `data/catalog/` NSE daily bars seeded via ad-hoc copy, not tantra-data's own pipeline | `data/catalog/1D`, `data/catalog/5M` | Closed in `3245b3b` (bhavcopy backfill `cli/ingest_catalog.py`; `providers/bhavcopy.py` tolerates the live NSE header; catalog seeded by tantra-data's own pipeline) |
+| 0005 | Block & bulk deal disclosure ingestion | `tantra_data` (reference) | Closed in `3a6b247` (`BlockDeal` domain, `providers/block_deals.py`, `DuckDbBlockDealsStore`, `PythonBlockDealsReader`, `BlockDealsRepository`/`BlockDealsReader` ports) |
+| 0006 | News article ingestion | `tantra_data` (reference) | Closed in `7af9a81` (`NewsArticle` domain, Moneycontrol RSS `providers/news.py`, `DuckDbNewsStore`, `PythonNewsReader`) |
+| 0007 | Filings data is Python-side only — no Rust consumer bridge | `tantra_data` (filings) | Closed in `tantra-market` `b040f68` + `tantra-runtime` `db60aaa` (`FilingsProjectionReader`, `FeedContentReader::with_filings`) |
+| 0008 | Corporate-actions data is Python-side only — no Rust consumer bridge | `tantra_data` (corporate actions) | Closed in `tantra-market` `b040f68` + `tantra-runtime` `db60aaa` (`CorporateActionsProjectionReader`, `FeedMarketReader::with_corporate_actions`) |
+| 0009 | Corporate-actions DuckDB store has no automatic ingestion | `tantra_data` (corporate actions) | Closed in `cd9fea6` (NSE `corporates-corporateActions` provider → `Split`/`Bonus`/`Dividend`/`Rights` through `DuckDbCorporateActionsStore`) |
+| 0010 | Economic/earnings/dividends/splits/IPO calendar ingestion (real vendor source) | `tantra_data` (calendar) | Closed in `cd9fea6` (vendor selected: Forex Factory weekly JSON feed — verified live; `providers/forex_factory.py` + `cli/ingest_calendar.py`) |
 | 0011 | Company fundamentals / symbol profile ingestion (was `0002-company-fundamentals-symbol-profile.md`; renumbered to fix the 0001–0003 collision) | `tantra_data` (profile) | Closed in `261d646` (`SymbolProfile` domain, `ProfileRepository`/`ProfileReader` ports, `DuckDbProfileStore`, `LakehouseProfileReader`, yfinance provider `fetch_symbol_profiles`, tests in `tests/test_profile.py`) |
+| 0012 | Calendar data stubbed pending external source decision | `tantra_data` (calendar) | Closed in `cd9fea6` (live Forex Factory ingestion path; `default_calendar_rows()` feeds from the live feed with stub fallback) |
+| 0013 | FII/DII daily institutional net-flow ingestion | `tantra_data` (reference) | Closed in `3a6b247` (`InstitutionalFlow` domain, NSE `fiidiiTradeReact` `providers/institutional_flow.py`, `DuckDbInstitutionalFlowStore`, `PythonInstitutionalFlowReader`) |
+| 0014 | Delivery percentage / delivery-adjusted volume ingestion | `tantra_data` (reference) | Closed in `7af9a81` (`DeliveryRecord` domain, `providers/delivery.py` over the bhavcopy delivery columns, `DuckDbDeliveryStore`, `PythonDeliveryReader`) |

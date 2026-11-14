@@ -10,10 +10,7 @@ Per workspace rule `.agents/rules/gap-tracking.md`:
 
 | # | Title | Target Scope | Status |
 |---|-------|--------------|--------|
-| [0003](0003-calendar-and-reference-data.md) | Calendar & Reference Data | `tantra_data` (calendar) | Open — tracks gaps 0010, 0012 (real calendar source + stub replacement) |
-| [0004](0004-content-and-disclosure-ingestion.md) | Content & Disclosure Ingestion | `tantra_data` (block deals, news) | Open — tracks gaps 0005, 0006 |
-| [0005](0005-rust-data-bridge.md) | tantra-data → Rust Data Bridge | `tantra_data` (filings, corporate actions) + `tantra-runtime`/`tantra-ffi` | Open — tracks gaps 0007, 0008 |
-| [0006](0006-lakehouse-ingestion-completeness.md) | Lakehouse Ingestion Completeness | `tantra_data` (catalog, corporate actions) | Open — tracks gaps 0004, 0009 |
+| — | (none) | — | — |
 
 ## Implemented Plans
 
@@ -21,6 +18,10 @@ Per workspace rule `.agents/rules/gap-tracking.md`:
 |---|-------|--------------|----------------|
 | 0001 | Lakehouse & Port Architecture for MCP Quantitative Tools and Screening | `tantra-data` | `MarketReader`, `ScreenerReader`, `MacroReader`, `ReferenceExporter` read ports in `tantra_data/ports/data_feeds.py`; `LakehouseMarketReader`, `VectorizedScreener`, `InMemoryReferenceExporter`, `PythonMacroReader` in `tantra_data/service/`; screener domain types (`ScreenQuery`, `ScreenCondition`, `ComparisonOp`); 16 tests in `tests/test_data_feeds.py`. |
 | 0002 | Filings Ingestion, Economic Series Breadth | `tantra-data` | Macro series ingestion: `MacroObservation` domain, `DuckDbMacroStore`, `MacroSeriesRepository` port, `PythonMacroReader.get_series` (`tests/test_macro.py`); filings ingestion: `Filing`/`FilingType` domain, `DuckDbFilingsStore`, `FilingsRepository`/`FilingsReader` ports, `LakehouseFilingsReader` (`tests/test_filings.py`). Both gaps 0002 and 0003 closed. 18 new tests total. |
+| 0003 | Calendar & Reference Data | `tantra-data` (calendar) | Closed in `cd9fea6`: vendor selected — Forex Factory weekly JSON feed (verified live `nfs.faireconomy.media/ff_calendar_thisweek.json`); `providers/forex_factory.py` (`parse_forex_factory`/`events_to_rows`/`fetch_forex_factory`/`ingest_forex_factory`), `cli/ingest_calendar.py`, `default_calendar_rows()` live-with-stub-fallback in `providers/calendar.py`. Gaps 0010 + 0012 closed; tests in `tests/test_forex_factory.py`. |
+| 0004 | Content & Disclosure Ingestion | `tantra-data` (block deals, news) | Closed in `3a6b247` (block/bulk deals: `BlockDeal` domain, `providers/block_deals.py`, `DuckDbBlockDealsStore`, `PythonBlockDealsReader`) + `7af9a81` (news: `NewsArticle` domain, Moneycontrol RSS `providers/news.py`, `DuckDbNewsStore`, `PythonNewsReader`). Gaps 0005 + 0006 closed. |
+| 0005 | tantra-data → Rust Data Bridge | `tantra_data` (filings, corporate actions) + `tantra-runtime`/`tantra-ffi` | Closed in `tantra-market` `b040f68` (`FilingsProjectionReader` + `CorporateActionsProjectionReader` over `{root}/catalog/filings`|`corporate_actions` parquet projections) + `tantra-runtime` `db60aaa` (`FeedContentReader::with_filings`, `FeedMarketReader::with_corporate_actions`, `ChatRuntime::from_env(data_root)`). Gaps 0007 + 0008 closed; `tests/chat_projection_tests.rs` (4 tests). |
+| 0006 | Lakehouse Ingestion Completeness | `tantra_data` (catalog, corporate actions) | Closed in `cd9fea6` (NSE corporate-actions provider → `DuckDbCorporateActionsStore`, gap 0009) + `3245b3b` (bhavcopy backfill `cli/ingest_catalog.py`; `providers/bhavcopy.py` tolerates the live NSE header — gap 0004). |
 
 ## Roadmap Dismantling Note
 
@@ -31,3 +32,8 @@ has been dismantled:
   `docs/design/architecture.md`.
 - All remaining open work lives here as plans 0003–0006, tracking the open gaps in
   `docs/gaps/README.md`.
+
+> **2026-11-13 (T5 track)**: plans 0003–0006 all implemented; the four plan documents were
+> removed from `docs/plans/` per gap-tracking §4 and recorded above. `tantra-data`'s remaining
+> open gaps are 0015 (NSE trading-holiday provider, data owner) and 0016 (EE+ intraday
+> option-chain snapshot lakehouse). The task-list T5 track is complete.
