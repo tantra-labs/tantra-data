@@ -34,6 +34,7 @@ overhaul.
 | [0016](0016-intraday-option-chain-snapshot-lakehouse.md) | Intraday option-chain snapshot ingestion (OI/ΔOI/IV/delta/gamma) + point-in-time GEX/flip series — no lakehouse store or as-of reader exists (Elephant Edge EE+) | `tantra_data` (derivatives) | — |
 | [0017](0017-institutional-flow-rust-bridge.md) | FII/DII institutional-flow data is Python-side only — no Rust consumer bridge (blocked chat `institutional_flows` tool; plan 0007 Track 2 Ph 4 + plan 0010) | `tantra_data` (bridge_exporter) + `tantra-market-store` projection reader | — |
 | [0018](0018-economic-calendar-rust-bridge.md) | Economic-calendar data is Python-side only — no Rust consumer bridge (blocked chat `economic_calendar` tool; plan 0007 Track 2 Ph 5) | `tantra_data` (bridge_exporter) + `tantra-market-store` projection reader | — |
+| [0019](0019-delivery-rust-bridge.md) | Delivery % / delivery-adjusted volume is Python-side only — no Rust consumer bridge (blocked chat `delivery_analysis` tool; agent plan 0010 Phase 2) | `tantra_data` (bridge_exporter) + `tantra-market-store` projection reader | — |
 
 ## Closed gaps
 
