@@ -32,6 +32,8 @@ overhaul.
 
 | [0015](0015-nse-trading-holiday-provider.md) | NSE trading-holiday provider — tantra-data owns the data (ledger plan 0005 T2.7 decision); runtime `NseTradingCalendar` still seeds its own holiday list | `tantra_data` (calendar) | — |
 | [0016](0016-intraday-option-chain-snapshot-lakehouse.md) | Intraday option-chain snapshot ingestion (OI/ΔOI/IV/delta/gamma) + point-in-time GEX/flip series — no lakehouse store or as-of reader exists (Elephant Edge EE+) | `tantra_data` (derivatives) | — |
+| [0017](0017-institutional-flow-rust-bridge.md) | FII/DII institutional-flow data is Python-side only — no Rust consumer bridge (blocked chat `institutional_flows` tool; plan 0007 Track 2 Ph 4 + plan 0010) | `tantra_data` (bridge_exporter) + `tantra-market-store` projection reader | — |
+| [0018](0018-economic-calendar-rust-bridge.md) | Economic-calendar data is Python-side only — no Rust consumer bridge (blocked chat `economic_calendar` tool; plan 0007 Track 2 Ph 5) | `tantra_data` (bridge_exporter) + `tantra-market-store` projection reader | — |
 
 ## Closed gaps
 
