@@ -52,6 +52,7 @@ from tantra_data.domain.institutional_flow import InstitutionalFlow
 from tantra_data.domain.macro import MacroObservation
 from tantra_data.domain.news import NewsArticle
 from tantra_data.domain.profile import SymbolProfile
+from tantra_data.domain.quantity import Quantity, QuantityError, parse_quantity
 from tantra_data.ports.data_feeds import (
     BlockDealsReader,
     CalendarReader,
@@ -241,6 +242,8 @@ __all__ = [
     "PythonInstitutionalFlowReader",
     "PythonMacroReader",
     "PythonNewsReader",
+    "Quantity",
+    "QuantityError",
     "ReferenceExporter",
     "Rights",
     "ScreenCondition",
@@ -273,6 +276,7 @@ __all__ = [
     "parse_institutional_flows",
     "parse_macro",
     "parse_news",
+    "parse_quantity",
     "read_bhavcopy",
     "read_block_deals",
     "read_bulk_deals",

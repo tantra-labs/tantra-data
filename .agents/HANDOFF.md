@@ -1,6 +1,17 @@
 # `tantra-data` — Inter-Agent Handoff
 
 ## Phase / Slice Status
+* **ex 0003 loaders/quantity (2026-11-15)**: shipped the tantra-examples-gap-0003 loader
+  surface: `loaders/amfi.py` (AMFI NAVAll.txt → `parse_navall`/`nav_bars`/`AmfiNavLoader`,
+  wheel-optional lazy `Bar`/`InstrumentId`/`ParquetBarStore` imports with
+  `tantra[native]` hint), `loaders/nse.py` (`parse_bhavcopy_csv` 3-dialect UDiFF/Sec-Bhavdata/
+  legacy + `NseBhavcopyProvider` with `download_session_bhavcopy`), `loaders/yfinance.py`
+  (`YFinanceProvider`, `yfinance_available()`-gated `RuntimeError`, Decimal bars),
+  `domain/quantity.py` (`Quantity`/`QuantityError`/`parse_quantity` — verbatim Decimal
+  crore/lakh/million/percent parser, exported from `tantra_data` `__init__`). 25 new tests in
+  `tests/test_loaders.py` (4 wheel-gated skips run under a wheel-enabled venv); full `pytest`
+  green (baseline 192 → +25, 4 skipped, exit 0); ruff check + format clean. `AmfiNavLoader`
+  store-backed `load()` is exercised by tantra-examples `test_amfi_loader.py`.
 * **Gaps 0021/0022 (Python side, 2026-11-14)**: mutual-fund (AMFI `NAVAll.txt`,
   live-verified 14,455 rows) + IPO (NSE `ipo-current-issue`/`all-upcoming-issues`/
   `public-past-issues`/`ipo-detail`, live-verified) ingestion landed:
