@@ -11,9 +11,10 @@ Quality / Value / Momentum (QVM) composite score. QVM is deliberately not named 
 are published.
 
 References: research [`trendlyne-screener-alerts-mcp.md`](../../../docs/research/trendlyne-screener-alerts-mcp.md) (F3, F4, F5);
-root roadmap [`0007`](../../../docs/plans/0007-screener-taxonomy-and-alerts.md).
+root roadmaps [`0007`](../../../docs/plans/0007-screener-taxonomy-and-alerts.md) and [`0008`](../../../docs/plans/0008-trade-signal-generator.md).
 Depends on: [tantra-core 0004](../../../tantra-core/docs/plans/0004-classification-and-alert-wire-types.md),
-[0007](0007-instrument-master-index-membership.md) (universes, classification).
+[0007](0007-instrument-master-index-membership.md) (universes, classification),
+[tantra-market 0002](../../../tantra-market/docs/plans/0002-chart-pattern-analyzer.md) (candlestick & geometric pattern codes).
 
 ## 1. Context & Gaps Covered
 
@@ -36,8 +37,8 @@ checks only the last candle column. Examples chains live in `tantra-examples/exa
 
 ### Phase C — Screen catalog (`tantra_data/catalog_screens/*.toml`, versioned, keyed by `ScreenCategory`)
 Presets: relative value set (PE, P/BV, ROCE, ROE, PEG, dividend vs peers); MA crosses incl. golden/death
-and price vs SMA/EMA; candlestick patterns; relative returns vs sector/index; PE buy/sell zone vs own
-3/5/10-yr history; Piotroski F-score; Greenblatt Magic Formula; Darvas box; FCF quality; debt-free +
+and price vs SMA/EMA; candlestick & geometric patterns (Darvas box, VCP, flags — aligned to frozen `tantra-market-signals::catalog::REASON_CODES` / `ChartPattern` via `tantra-ffi` rather than re-implementing duplicate candlestick/pattern rules in DuckDB SQL); relative returns vs sector/index; PE buy/sell zone vs own
+3/5/10-yr history; Piotroski F-score; Greenblatt Magic Formula; FCF quality; debt-free +
 positive FCF + low PE; red flags (financial subset until gap 0024 closes). Each preset has id, version,
 category, description, and a golden expected result on fixture data.
 
