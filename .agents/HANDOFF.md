@@ -1,6 +1,13 @@
 # `tantra-data` — Inter-Agent Handoff
 
 ## Phase / Slice Status
+* **nav_bars Decimal-quantize fix (2026-11-16)**: `loaders/amfi.py::nav_bars` now quantizes the
+  NAV to 4dp (`Decimal("0.0001")`) — float binary artifacts previously carried 40+ scale digits
+  into the parquet store's decimal128(38,10) columns and failed with "Rescaling Decimal value
+  would cause data loss". Un-skipped `test_04_portfolio_optimization`.
+* **Gap 0023 filed (2026-11-16)**: `tantra_data.store.mutual_funds` (`DuckDbMutualFundsStore`)
+  was never shipped — the consumer (`tantra-examples` MF screener) only has its missing-extra
+  degradation path. Open gap `docs/gaps/0023-*.md`; closes when the store surface ships.
 * **ex 0003 loaders/quantity (2026-11-15)**: shipped the tantra-examples-gap-0003 loader
   surface: `loaders/amfi.py` (AMFI NAVAll.txt → `parse_navall`/`nav_bars`/`AmfiNavLoader`,
   wheel-optional lazy `Bar`/`InstrumentId`/`ParquetBarStore` imports with

@@ -135,11 +135,16 @@ def nav_bars(rows: Sequence[NavRow]) -> list[Bar]:
         from tantra.instrument import InstrumentId
     except ImportError as exc:
         raise ImportError(_WHEEL_HINT) from exc
+    # NAVs are published at 4 decimal places; a raw float's binary artifacts (or an
+    # over-precise Decimal) would otherwise carry 40+ scale digits into the parquet
+    # store's decimal128(38, 10) columns and fail with "Rescaling Decimal value would
+    # cause data loss".
+    _NAV_SCALE = Decimal("0.0001")
     return [
         Bar(
             instrument_id=InstrumentId(row.code, EXCHANGE),
             ts=(row.date - _EPOCH).days * _NS_PER_DAY + _SESSION_OPEN_NS,
-            open=(nav := Decimal(str(row.nav))),
+            open=(nav := Decimal(str(row.nav)).quantize(_NAV_SCALE)),
             high=nav,
             low=nav,
             close=nav,
