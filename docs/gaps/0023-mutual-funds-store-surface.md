@@ -55,5 +55,5 @@ data-provisioning microservice).
 ## Related
 
 - tantra-examples plan 0004 (data-provisioning microservice, `mutual_funds` dataset)
-- tantra-examples gap 0003 / `VYAAPAAR_DATA_DIR` offline seam
+- tantra-examples gap 0003 / `TANTRA_DATA_DIR` offline seam
 - tantra-data gap 0021 (AMFI NAV ingestion — closed)
