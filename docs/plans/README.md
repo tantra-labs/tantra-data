@@ -10,8 +10,8 @@ Per workspace rule `.agents/rules/gap-tracking.md`:
 
 | # | Title | Target Scope | Status |
 |---|-------|--------------|--------|
-| [0007](0007-instrument-master-index-membership.md) | Instrument Master, Classification & Point-in-Time Index Membership | `tantra_data` | Proposed — research `docs/research/trendlyne-screener-alerts-mcp.md`; root plan `docs/plans/0007` (F2); supersedes examples gaps 0004/0006 universe portions |
-| [0008](0008-screen-dsl-catalog-qvm.md) | Unified Screen DSL, Screen Catalog & QVM Score | `tantra_data` | Proposed — research `docs/research/trendlyne-screener-alerts-mcp.md`; root plan `docs/plans/0007` (F3–F5); depends on 0007 |
+| [0007](0007-instrument-master-index-membership.md) | Instrument Master, Classification & Point-in-Time Index Membership | `tantra_data` | Proposed — research `docs/research/trendlyne-screener-alerts-mcp.md`; root plan `docs/plans/0010` (F2); supersedes examples gaps 0004/0006 universe portions |
+| [0008](0008-screen-dsl-catalog-qvm.md) | Unified Screen DSL, Screen Catalog & QVM Score | `tantra_data` | Proposed — research `docs/research/trendlyne-screener-alerts-mcp.md`; root plan `docs/plans/0010` (F3–F5); depends on 0007 |
 
 ## Implemented Plans
 

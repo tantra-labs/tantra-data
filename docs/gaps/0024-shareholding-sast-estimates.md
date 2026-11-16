@@ -12,7 +12,7 @@ analyst estimates. Only aggregate FII/DII flows (closed gap 0013) and block/bulk
 
 Blocks the Shareholding, Forecaster and business/financial Red-Flag screen categories and insider-deal
 alerts in the research taxonomy ([`trendlyne-screener-alerts-mcp.md`](../../../docs/research/trendlyne-screener-alerts-mcp.md), F9;
-root roadmap [`0007`](../../../docs/plans/0007-screener-taxonomy-and-alerts.md)). Referenced by
+root roadmap [`0010`](../../../docs/plans/0010-screener-taxonomy-and-alerts.md)). Referenced by
 [plan 0008](../plans/0008-screen-dsl-catalog-qvm.md).
 
 ## How to close it

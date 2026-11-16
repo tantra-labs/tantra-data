@@ -10,7 +10,7 @@ half-yearly market-cap categorisation. This is the provider for every universe, 
 cap-bucket screen. Native implementation only; no Trendlyne adapter.
 
 References: research [`trendlyne-screener-alerts-mcp.md`](../../../docs/research/trendlyne-screener-alerts-mcp.md) (F2);
-root roadmap [`0007`](../../../docs/plans/0007-screener-taxonomy-and-alerts.md).
+root roadmap [`0010`](../../../docs/plans/0010-screener-taxonomy-and-alerts.md).
 Depends on: [tantra-core 0004](../../../tantra-core/docs/plans/0004-classification-and-alert-wire-types.md) (wire types).
 
 ## 1. Context & Gaps Covered

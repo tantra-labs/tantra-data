@@ -11,7 +11,7 @@ Quality / Value / Momentum (QVM) composite score. QVM is deliberately not named 
 are published.
 
 References: research [`trendlyne-screener-alerts-mcp.md`](../../../docs/research/trendlyne-screener-alerts-mcp.md) (F3, F4, F5);
-root roadmaps [`0007`](../../../docs/plans/0007-screener-taxonomy-and-alerts.md) and [`0008`](../../../docs/plans/0008-trade-signal-generator.md).
+root roadmaps [`0010`](../../../docs/plans/0010-screener-taxonomy-and-alerts.md) and [`0008`](../../../docs/plans/0008-trade-signal-generator.md).
 Depends on: [tantra-core 0004](../../../tantra-core/docs/plans/0004-classification-and-alert-wire-types.md),
 [0007](0007-instrument-master-index-membership.md) (universes, classification),
 [tantra-market 0002](../../../tantra-market/docs/plans/0002-chart-pattern-analyzer.md) (candlestick & geometric pattern codes).
