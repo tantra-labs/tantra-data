@@ -97,7 +97,7 @@ def parse_bhavcopy_csv(csv_content: str, exchange: str = "NSE") -> dict[str, Bar
         from tantra.instrument import InstrumentId
     except ImportError as exc:
         raise ImportError(_WHEEL_HINT) from exc
-    reader = csv.DictReader(io.StringIO(csv_content))
+    reader = csv.DictReader(io.StringIO(csv_content), delimiter=";")
     field_map = {name.strip().upper(): name for name in reader.fieldnames or [] if name}
     upper_fields = set(field_map)
 
