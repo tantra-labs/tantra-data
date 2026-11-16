@@ -97,7 +97,7 @@ def parse_bhavcopy_csv(csv_content: str, exchange: str = "NSE") -> dict[str, Bar
         from tantra.instrument import InstrumentId
     except ImportError as exc:
         raise ImportError(_WHEEL_HINT) from exc
-    reader = csv.DictReader(io.StringIO(csv_content), delimiter=";")
+    reader = csv.DictReader(io.StringIO(csv_content), delimiter=_sniff_delimiter(csv_content))
     field_map = {name.strip().upper(): name for name in reader.fieldnames or [] if name}
     upper_fields = set(field_map)
 
@@ -140,6 +140,17 @@ def _session_open_ns(day: dt.date) -> int:
     """Unix-ns timestamp of a daily bar for ``day`` (session open, as the store has it)."""
     moment = dt.datetime.combine(day, _IST_OPEN_UTC, tzinfo=dt.UTC)
     return int(moment.timestamp()) * 1_000_000_000
+
+
+def _sniff_delimiter(csv_content: str) -> str:
+    """Delimiter of ``csv_content``'s header row: ';' when semicolons appear, else ','.
+
+    NSE bhavcopy publications are comma-separated, but the fixtures and some broker
+    exports use semicolons; a hardcoded delimiter would silently parse the other as a
+    single-field header and return an empty dict.
+    """
+    first_line = csv_content.splitlines()[0] if csv_content.splitlines() else ""
+    return ";" if ";" in first_line else ","
 
 
 def _parse_date(text: str, date_format: str) -> dt.date:
