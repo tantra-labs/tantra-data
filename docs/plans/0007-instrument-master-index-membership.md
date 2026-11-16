@@ -16,10 +16,13 @@ Depends on: [tantra-core 0004](../../../tantra-core/docs/plans/0004-classificati
 ## 1. Context & Gaps Covered
 
 Today: `SymbolProfile` carries free-string `industry`/`sector`; there is no instrument master and
-no index constituents. `tantra-examples/tantra_examples/universe_lists.py` mirrors only nifty50 and
-nifty200_alpha30 (examples gaps 0004 and 0006). This plan **supersedes the universe portions of
-tantra-examples gaps 0004/0006**; examples will switch to the readers below (see
-[tantra-examples 0003](../../../tantra-examples/docs/plans/0003-categorized-examples.md)).
+no index-constituent store. Universe resolution lives in the `tantra` wheel at
+`tantra-ffi/python/tantra/markets/india/universes.py` (`resolve_universe`, `UniverseHistory`,
+`UniverseUnavailable`, `alpha30_*`, `banknifty_members`; lifted from the examples mirror when
+examples gaps 0004/0006 closed). It covers only a few hand-registered lists (nifty50, Alpha30, Bank Nifty).
+This plan supplies the **data-backed** membership history: the wheel's `resolve_universe` should read
+`UniverseReader` (or the snapshots it exports) rather than hand-maintained lists (see
+[tantra-examples 0005](../../../tantra-examples/docs/plans/0005-categorized-examples.md)).
 
 ## 2. Component Specifications & Phases
 
