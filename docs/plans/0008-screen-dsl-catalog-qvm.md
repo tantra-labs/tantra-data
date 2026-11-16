@@ -60,7 +60,7 @@ In `tests/`: `test_screen_dsl.py` (mapping round-trip vs golden core JSON), `tes
 
 L6; Decimal throughout; ports raise explicit Unavailable errors. Feeds
 [tantra-agent 0013](../../../tantra-agent/docs/plans/0013-screener-mcp-tools.md),
-[tantra-runtime 0005](../../../tantra-runtime/docs/plans/0005-group-screener-alerts.md),
+[tantra-runtime 0007](../../../tantra-runtime/docs/plans/0007-group-screener-alerts.md),
 [tantra-examples 0005](../../../tantra-examples/docs/plans/0005-categorized-examples.md).
 Shareholding/Forecaster/red-flag-business categories blocked by [gap 0024](../gaps/0024-shareholding-sast-estimates.md).
 

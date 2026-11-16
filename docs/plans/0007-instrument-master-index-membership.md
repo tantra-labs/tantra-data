@@ -63,7 +63,7 @@ In `tests/` only; no network (fixtures, fake transport):
 
 L6 Python. Consumed by [0008](0008-screen-dsl-catalog-qvm.md),
 [tantra-strategies 0002](../../../tantra-strategies/docs/plans/0002-universe-screen-context.md) (via
-composition adapter), [tantra-runtime 0005](../../../tantra-runtime/docs/plans/0005-group-screener-alerts.md).
+composition adapter), [tantra-runtime 0007](../../../tantra-runtime/docs/plans/0007-group-screener-alerts.md).
 Classification and bucket strings must equal tantra-core wire strings; do not fork semantics.
 
 ## 5. Open Questions
