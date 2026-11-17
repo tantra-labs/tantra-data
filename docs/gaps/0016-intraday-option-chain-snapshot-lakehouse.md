@@ -28,12 +28,15 @@ for the options-aware signal rules.
 
 ## How to Close It
 
-1. **`OptionChainSnapshot` store** (DuckDB + Parquet):
-   `option_chain/{expiry}/YYYY-MM-DD-HHMM.parquet` keyed by
-   `(as_of, instrument, expiry, strike, option_type)`, Decimal columns for OI /
-   ΔOI / IV / delta / gamma — mirroring the Rust `ParquetOpenInterestStore`
-   (`{root}/open_interest/YYYY-MM-DD.parquet`) convention, extended with
-   Greeks.
+1. **`OptionChainSnapshot` store** (DuckDB + Parquet per root ADR [`0004`](../../../docs/design/0004-data-catalog-lakehouse-layout.md)):
+   `derivatives/option_chain/exchange={EX}/underlying={SYM}/date=YYYY-MM-DD/`
+   (one session-day partition sorted by `(expiry, strike, option_type, as_of_ts)`
+   with 50K–100K row groups instead of per-5-minute tiny `YYYY-MM-DD-HHMM.parquet`
+   files; live intraday append flushes compact post-close via
+   [`tantra-data` plan 0009](../plans/0009-unified-lakehouse-v3-and-cas-manifest.md)),
+   keyed by `(as_of, instrument, expiry, strike, option_type)`, `Decimal128(18, 4)`
+   columns for OI / ΔOI / IV / delta / gamma — unifying with the Rust
+   `ParquetOpenInterestStore` migration tracked in [`tantra-market` gap 0008](../../../tantra-market/docs/gaps/0008-lakehouse-v3-manifest-and-snapshot-reader.md).
 2. **Ingestion pipeline**: poll the NSE public option-chain source during
    market hours (configurable interval, default 5 min), upsert snapshots,
    stamp `as_of` (UTC + IST session mapping). Intraday OI is provisional;
@@ -43,7 +46,8 @@ for the options-aware signal rules.
    reads only the chain known at each backtest bar.
 4. **GEX series**: materialize per-strike GEX + net + flip per snapshot
    (Black-76 gamma × OI × lot size × spot scaling, exact Decimal) as a derived
-   Parquet series for the regime gate.
+   Parquet series under `derivatives/gex/exchange={EX}/year=YYYY/month=MM` for
+   the regime gate.
 5. Tests in `tests/` (TDD): as-of determinism, snapshot upsert idempotency,
    GEX golden vectors, expiry rollover handling.
 
@@ -51,4 +55,4 @@ for the options-aware signal rules.
 
 `pytest -q` green; a seeded week of snapshots yields the correct as-of series
 (no lookahead); GEX per strike matches the golden vectors; the DuckDB/Parquet
-layout matches the Rust-side naming convention.
+layout matches ADR `0004` (`derivatives/option_chain/...`) and Rust-side naming.

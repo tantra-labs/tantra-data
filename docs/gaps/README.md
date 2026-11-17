@@ -31,9 +31,10 @@ overhaul.
 ## Open gaps
 
 | [0015](0015-nse-trading-holiday-provider.md) | NSE trading-holiday provider — tantra-data owns the data (ledger plan 0005 T2.7 decision); runtime `NseTradingCalendar` still seeds its own holiday list | `tantra_data` (calendar) | — |
-| [0016](0016-intraday-option-chain-snapshot-lakehouse.md) | Intraday option-chain snapshot ingestion (OI/ΔOI/IV/delta/gamma) + point-in-time GEX/flip series — no lakehouse store or as-of reader exists (Elephant Edge EE+) | `tantra_data` (derivatives) | — |
+| [0016](0016-intraday-option-chain-snapshot-lakehouse.md) | Intraday option-chain snapshot ingestion (OI/ΔOI/IV/delta/gamma) + point-in-time GEX/flip series — aligned to ADR `0004` `derivatives/option_chain/.../date=YYYY-MM-DD/` layout; no lakehouse store or as-of reader exists yet (Elephant Edge EE+) | `tantra_data` (derivatives) | — |
 | [0023](0023-mutual-funds-store-surface.md) | `tantra_data.store.mutual_funds` (DuckDbMutualFundsStore) never shipped — the mutual-fund screener's lookthrough store surface is absent; consumer (`screen_mutual_funds`) degrades to its missing-extra error | `tantra_data` (funds) | — |
 | [0024](0024-shareholding-sast-estimates.md) | Per-stock shareholding, pledge, SAST/insider disclosures and analyst estimates — no data source (blocks Shareholding/Forecaster/Red-flag screens) | `tantra_data` (reference) | — |
+| [0025](0025-legacy-catalog-layout-and-flat-parquet-fragmentation.md) | Legacy per-symbol `catalog/{TF}/{EX}/{SYM}` + flat `*.NSE.parquet` + unversioned bridge projections; no `instrument_uid` rename alias table or `objects/sha256` CAS manifest (ADR `0004`, plan `0009`) | `tantra_data` (lakehouse) | — |
 
 ## Closed gaps
 
