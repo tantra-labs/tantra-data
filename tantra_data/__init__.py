@@ -60,6 +60,7 @@ from tantra_data.domain.option_chain import (
 )
 from tantra_data.domain.profile import SymbolProfile
 from tantra_data.domain.quantity import Quantity, QuantityError, parse_quantity
+from tantra_data.domain.trading_holidays import TradingHoliday
 from tantra_data.ports.data_feeds import (
     BlockDealsReader,
     CalendarReader,
@@ -92,6 +93,7 @@ from tantra_data.ports.repositories import (
     NewsRepository,
     ProfileRepository,
 )
+from tantra_data.ports.trading_holidays import TradingHolidayReader
 from tantra_data.providers.bhavcopy import (
     BhavcopyRow,
     fetch_bhavcopy,
@@ -171,6 +173,13 @@ from tantra_data.providers.profile import (
     rows_to_profiles,
     yfinance_available,
 )
+from tantra_data.providers.trading_holidays import (
+    TradingHolidayLiveError,
+    fetch_trading_holidays,
+    fetch_trading_holidays_fixture,
+    parse_trading_holidays,
+    read_trading_holidays,
+)
 from tantra_data.service.block_deals_reader import PythonBlockDealsReader
 from tantra_data.service.bridge_exporter import LakehouseBridgeExporter
 from tantra_data.service.calendar_reader import LakehouseCalendarReader
@@ -185,7 +194,9 @@ from tantra_data.service.news_reader import PythonNewsReader
 from tantra_data.service.profile_reader import LakehouseProfileReader
 from tantra_data.service.reference_exporter import InMemoryReferenceExporter
 from tantra_data.service.screener import VectorizedScreener
+from tantra_data.service.trading_holidays_reader import PythonTradingHolidayReader
 from tantra_data.store.option_chain import DuckDbOptionChainStore
+from tantra_data.store.trading_holidays import DuckDbTradingHolidayStore
 
 __version__ = "0.1.0"
 
@@ -221,6 +232,7 @@ __all__ = [
     "DuckDbMacroStore",
     "DuckDbOptionChainStore",
     "DuckDbProfileStore",
+    "DuckDbTradingHolidayStore",
     "Filing",
     "FilingRow",
     "FilingType",
@@ -265,6 +277,7 @@ __all__ = [
     "PythonInstitutionalFlowReader",
     "PythonMacroReader",
     "PythonNewsReader",
+    "PythonTradingHolidayReader",
     "Quantity",
     "QuantityError",
     "ReferenceExporter",
@@ -280,6 +293,9 @@ __all__ = [
     "StrikePositioning",
     "SymbolProfile",
     "TantraDataService",
+    "TradingHoliday",
+    "TradingHolidayLiveError",
+    "TradingHolidayReader",
     "VectorizedScreener",
     "__version__",
     "compute_gamma_exposure",
@@ -290,6 +306,8 @@ __all__ = [
     "fetch_option_chain",
     "fetch_option_chain_fixture",
     "fetch_symbol_profiles",
+    "fetch_trading_holidays",
+    "fetch_trading_holidays_fixture",
     "from_record",
     "ingest_fundamentals",
     "parse_bhavcopy",
@@ -306,6 +324,7 @@ __all__ = [
     "parse_news",
     "parse_option_chain",
     "parse_quantity",
+    "parse_trading_holidays",
     "read_bhavcopy",
     "read_block_deals",
     "read_bulk_deals",
@@ -316,6 +335,7 @@ __all__ = [
     "read_macro",
     "read_news",
     "read_option_chain",
+    "read_trading_holidays",
     "rows_to_actions",
     "rows_to_articles",
     "rows_to_bars",

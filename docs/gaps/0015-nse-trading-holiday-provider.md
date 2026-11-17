@@ -1,6 +1,6 @@
 # 0015 — No NSE trading-holiday provider: tantra-data owns the data, runtime seeds its own list
 
-**Status**: open (implementation uses a hardcoded/seeded list in the consumer)
+**Status**: closed (T17.1; see the `feat(data): NSE trading-holiday provider + store + bridge` commit — `tantra_data` now owns the reference data and the runtime consumer reads it from the data root, with the seed table kept only as the deterministic offline fallback)
 
 ## What's stubbed or hardcoded
 
@@ -45,3 +45,22 @@ entries + Muhurat sessions), **not** a live ingestion path from this repo:
   `ClearingCalendar::new()` is already empty; real holidays are injected via
   `with_holidays`. This gap is the last upstream piece for a fully
   data-driven holiday calendar.
+
+## Closed by
+
+1. `tantra_data` now owns the NSE trading-holiday master:
+   `domain/trading_holidays.py` (`TradingHoliday`), a live-with-fixture-fallback
+   provider (`providers/trading_holidays.py`, NSE `holiday-master?type=trading`
+   live source; sandbox observes an HTTP 301 redirect so the bundled recorded
+   fixture `tests/fixtures/trading_holidays_2025_2026.json` serves offline —
+   `LIVE_VERIFICATION` pins the honest status), a DuckDB store
+   (`store/trading_holidays.py`, idempotent per calendar year), the
+   `TradingHolidayReader` port + `PythonTradingHolidayReader`, the
+   `cli/ingest_trading_holidays.py` ingestion entry, and a
+   `catalog/trading_holidays/<year>.parquet` bridge export
+   (`service/bridge_exporter.py::export_trading_holidays`) for the Rust side.
+2. `tantra-runtime-backtest::NseTradingCalendar` reads that projection from the
+   data root (`from_data_root` / `from_data_root_env`, env `TANTRA_DATA_DIR`)
+   instead of seeding its own list; `seed_standard_holidays` is kept only as the
+   documented offline fallback so backtests stay deterministic when no data is
+   deployed (choice noted in `calendar.rs`).

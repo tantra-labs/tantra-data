@@ -29,6 +29,7 @@ from tantra_data.adapters.mutual_fund_return_store import DuckDbMutualFundReturn
 from tantra_data.adapters.mutual_fund_store import DuckDbMutualFundStore
 from tantra_data.adapters.news_store import DuckDbNewsStore
 from tantra_data.service.bridge_exporter import LakehouseBridgeExporter
+from tantra_data.store.trading_holidays import DuckDbTradingHolidayStore
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -67,6 +68,7 @@ def main(argv: list[str] | None = None) -> int:
             "mf-returns",
             "ipos",
             "ipo-subscriptions",
+            "trading-holidays",
             "all",
         ),
         default="all",
@@ -91,6 +93,10 @@ def main(argv: list[str] | None = None) -> int:
     mf_returns = DuckDbMutualFundReturnStore(str(db_path))
     ipos = DuckDbIpoStore(str(db_path))
     ipo_subscriptions = DuckDbIpoSubscriptionStore(str(db_path))
+    # The trading-holiday store is rooted at the data directory (written by
+    # `cli/ingest_trading_holidays.py` as {root}/trading_holidays.duckdb); the
+    # catalog root is its `catalog/` child, so the store root is the parent.
+    trading_holidays = DuckDbTradingHolidayStore(catalog_root.parent)
     exporter = LakehouseBridgeExporter(
         filings,
         corporate_actions,
@@ -106,6 +112,7 @@ def main(argv: list[str] | None = None) -> int:
         mf_returns=mf_returns,
         ipos=ipos,
         ipo_subscriptions=ipo_subscriptions,
+        trading_holidays=trading_holidays,
     )
     try:
         if args.dataset in ("filings", "all"):
@@ -150,6 +157,9 @@ def main(argv: list[str] | None = None) -> int:
         if args.dataset in ("ipo-subscriptions", "all"):
             n_subs = exporter.export_ipo_subscriptions(catalog_root)
             print(f"Exported {n_subs} IPO subscription files")
+        if args.dataset in ("trading-holidays", "all"):
+            n_holidays = exporter.export_trading_holidays(catalog_root)
+            print(f"Exported {n_holidays} trading-holiday files")
         return 0
     except Exception as exc:
         print(f"export failed: {exc}", file=sys.stderr)
@@ -169,6 +179,7 @@ def main(argv: list[str] | None = None) -> int:
         mf_returns.close()
         ipos.close()
         ipo_subscriptions.close()
+        trading_holidays.close()
 
 
 if __name__ == "__main__":

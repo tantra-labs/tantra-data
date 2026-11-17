@@ -20,8 +20,10 @@ a ``chain_as_of`` point-in-time projection, and a derived GEX series under
 
 Covers gaps 0007 (filings), 0008 (corporate actions), 0005 (block/bulk-deal
 disclosure ingestion), 0006 (news ingestion), 0017/0018/0019 (institutional
-flows / economic calendar / delivery bridges), 0020 (company fundamentals)
-and 0021/0022 (mutual funds / IPO primary market).
+flows / economic calendar / delivery bridges), 0020 (company fundamentals),
+0021/0022 (mutual funds / IPO primary market) and 0015 (NSE trading holidays,
+exported to ``catalog/trading_holidays/<year>.parquet`` for the
+``tantra-runtime-backtest`` calendar consumer).
 Values keep their exact shapes: prices/ratios are preserved as exact
 ``Decimal`` via ``Decimal128(18, 4)``; no floats are introduced anywhere in
 the projection.
@@ -61,6 +63,7 @@ from tantra_data.domain.option_chain import (
     StrikePositioning,
     compute_gamma_exposure,
 )
+from tantra_data.domain.trading_holidays import TradingHoliday
 
 __all__ = ["LakehouseBridgeExporter"]
 
@@ -265,6 +268,18 @@ class OptionChainRepository(Protocol):
     def close(self) -> None: ...
 
 
+class TradingHolidayRepository(Protocol):
+    """Structural interface for the trading-holiday store consumed by the bridge.
+
+    ``all_holidays`` is called with no arguments so the whole master can be
+    projected into per-year Parquet files (gap 0015).
+    """
+
+    def all_holidays(self) -> list[TradingHoliday]: ...
+
+    def close(self) -> None: ...
+
+
 def _as_decimal128(value: Decimal | None) -> Decimal | None:
     """Quantize a value to the 4-dp ``Decimal128(18, 4)`` projection scale.
 
@@ -296,6 +311,7 @@ class LakehouseBridgeExporter:
         ipos: IposRepository | None = None,
         ipo_subscriptions: IpoSubscriptionsRepository | None = None,
         option_chain: OptionChainRepository | None = None,
+        trading_holidays: TradingHolidayRepository | None = None,
     ) -> None:
         self._filings = filings
         self._corporate_actions = corporate_actions
@@ -312,6 +328,7 @@ class LakehouseBridgeExporter:
         self._ipos = ipos
         self._ipo_subscriptions = ipo_subscriptions
         self._option_chain = option_chain
+        self._trading_holidays = trading_holidays
 
     def export_filings(self, root: str | Path) -> int:
         """Write ``{root}/catalog/filings/<filing_date>.parquet`` per filing date.
@@ -562,6 +579,38 @@ class LakehouseBridgeExporter:
                 }
             )
             path = root / "economic_calendar" / f"{scheduled_date.isoformat()}.parquet"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            pq.write_table(table, path, version="2.6")
+            count += 1
+        return count
+
+    def export_trading_holidays(self, root: str | Path) -> int:
+        """Write ``{root}/catalog/trading_holidays/<year>.parquet`` per year.
+
+        Each file carries every declared NSE trading holiday / Muhurat session
+        for that calendar year with exact ``date32`` dates — the projection
+        ``tantra-runtime-backtest::NseTradingCalendar`` reads when it is built
+        from the data root (gap 0015). Returns the number of files written;
+        returns 0 when no trading-holiday store is configured.
+        """
+        if self._trading_holidays is None:
+            return 0
+        root = Path(root)
+        by_year: dict[int, list[TradingHoliday]] = {}
+        for holiday in self._trading_holidays.all_holidays():
+            by_year.setdefault(holiday.date.year, []).append(holiday)
+
+        count = 0
+        for year, holidays in sorted(by_year.items()):
+            ordered = sorted(holidays, key=lambda holiday: holiday.date)
+            table = pa.Table.from_pydict(
+                {
+                    "holiday_date": pa.array([h.date for h in ordered], type=pa.date32()),
+                    "description": pa.array([h.description for h in ordered], type=pa.string()),
+                    "kind": pa.array([h.kind for h in ordered], type=pa.string()),
+                }
+            )
+            path = root / "trading_holidays" / f"{year}.parquet"
             path.parent.mkdir(parents=True, exist_ok=True)
             pq.write_table(table, path, version="2.6")
             count += 1
