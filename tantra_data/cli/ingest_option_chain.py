@@ -1,10 +1,16 @@
 """Intraday NSE option-chain ingestion CLI for tantra-data (gap 0016).
 
 Polls the NSE public option-chain feed
-(``https://www.nseindia.com/api/option-chain-indices?symbol={symbol}``, with
-the live-with-fixture-fallback provider) at a configurable interval during
+(``https://www.nseindia.com/api/option-chain-v3?type=Indices&symbol={symbol}``,
+with the live-with-fixture-fallback provider) at a configurable interval during
 market hours and upserts point-in-time snapshots into the DuckDB option-chain
 store at ``{root}/option_chain.duckdb``.
+
+When the live feed fails (the sandbox has never been able to verify it — see
+``providers/option_chain.py``), the provider falls back to the bundled
+``source: fixture`` snapshot and the CLI prints a ``WARNING`` to stderr naming
+the precise live failure (via ``fetch_option_chain(on_live_error=...)``), so a
+fixture fallback is always explicit and never silently fabricated as live data.
 
 ``as_of`` is stamped in UTC by the provider (the NSE ``records.timestamp`` is
 an IST session time, converted to UTC). The CLI maps the current wall clock to
@@ -26,7 +32,10 @@ from datetime import time as dtime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from tantra_data.providers.option_chain import fetch_option_chain
+from tantra_data.providers.option_chain import (
+    OptionChainLiveError,
+    fetch_option_chain,
+)
 from tantra_data.store.option_chain import DuckDbOptionChainStore
 
 IST = ZoneInfo("Asia/Kolkata")
@@ -84,7 +93,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     if args.dry_run:
-        snapshot = fetch_option_chain(args.symbol)
+        snapshot = fetch_option_chain(args.symbol, on_live_error=_warn_live_error)
         print(
             "DRY-RUN "
             f"{snapshot.as_of.isoformat()} {snapshot.underlying} "
@@ -121,13 +130,18 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _ingest_once(store: DuckDbOptionChainStore, symbol: str) -> int:
-    snapshot = fetch_option_chain(symbol)
+    snapshot = fetch_option_chain(symbol, on_live_error=_warn_live_error)
     store.upsert_snapshot(snapshot)
     print(
         f"Upserted {len(snapshot.strikes)} strikes for {symbol} at "
         f"{snapshot.as_of.isoformat()} (source={snapshot.source})"
     )
     return len(snapshot.strikes)
+
+
+def _warn_live_error(error: OptionChainLiveError) -> None:
+    """Surface a precise live-fetch failure to stderr (never fabricate data)."""
+    print(f"WARNING option-chain live fetch failed: {error}", file=sys.stderr)
 
 
 def _parse_hours(text: str) -> tuple[dtime, dtime]:

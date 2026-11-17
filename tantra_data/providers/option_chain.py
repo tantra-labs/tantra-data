@@ -2,20 +2,34 @@
 
 Live source::
 
-    https://www.nseindia.com/api/option-chain-indices?symbol={symbol}
+    https://www.nseindia.com/api/option-chain-v3?type=Indices&symbol={symbol}
 
-with a ``curl_cffi`` Chrome-impersonating session and the NSE ``Referer``
-header, matching ``providers/institutional_flow.py``.
+This is the endpoint the current NSE frontend calls (confirmed 2026-11-17 by
+reading the live ``dist/js/sections/option-chain-v3.js`` bundle); NSE replaced
+the legacy ``https://www.nseindia.com/api/option-chain-indices`` path, which
+now returns ``HTTP 404`` "Resource not found". The feed is fetched with a
+``curl_cffi`` Chrome-impersonating session plus browser-like headers
+(``User-Agent``, ``Referer``, ``Accept-Language``, ``Accept``), matching the
+repo's working NSE provider ``providers/institutional_flow.py``.
 
-Verification status: the live ``option-chain-indices`` endpoint returned
-``HTTP 404`` from the sandbox on 2026-11-16/17 (``option-chain-equities`` was
-reachable, but the indices endpoint was not), so the live feed could NOT be
-verified here. The provider therefore uses the repo's live-with-stub-fallback
-pattern (``providers/calendar.py::default_calendar_rows``): it attempts the
-live fetch and, on any failure (offline, HTTP error, blocked endpoint, or a
+Verification status (retried 2026-11-17, T12.3 follow-on): still **NOT
+verified live** from the sandbox. The legacy ``option-chain-indices`` endpoint
+returns ``HTTP 404`` (removed by NSE, see above); the current
+``option-chain-v3`` endpoint returns ``200`` with an empty JSON object (``{}``)
+even through the full home -> option-chain-page browser flow — the API is gated
+by an Akamai JS sensor (``_abck``/``bm_sz`` challenge cookies) that
+``curl_cffi`` cannot complete, so the sandbox receives no data. This is the
+exact, honest failure: nothing is fabricated and no live success is claimed.
+
+The provider therefore uses the repo's live-with-stub-fallback pattern
+(``providers/calendar.py::default_calendar_rows``): it attempts the live fetch
+and, on any failure (offline, HTTP error, blocked endpoint, empty payload, or a
 malformed payload), falls back to the bundled recorded fixture
 ``tests/fixtures/option_chain_nifty.json``, which is labelled
-``source: fixture`` — never fabricated as live data.
+``source: fixture`` — never fabricated as live data. The precise live failure
+is surfaced as :class:`OptionChainLiveError` through the optional
+``on_live_error`` callback of :func:`fetch_option_chain`; the current status is
+pinned machine-readably in :data:`LIVE_VERIFICATION`.
 
 Zero-floats invariant: every value is parsed with exact ``decimal.Decimal``
 arithmetic, never ``float``.
@@ -24,15 +38,19 @@ arithmetic, never ``float``.
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 from zoneinfo import ZoneInfo
 
 from tantra_data.domain.option_chain import OptionChainSnapshot, StrikePositioning
 
 __all__ = [
+    "LIVE_VERIFICATION",
+    "OPTION_CHAIN_URL",
+    "OptionChainLiveError",
     "fetch_option_chain",
     "fetch_option_chain_fixture",
     "parse_option_chain",
@@ -40,19 +58,73 @@ __all__ = [
 ]
 
 NSE_HOME_URL = "https://www.nseindia.com"
-OPTION_CHAIN_URL = f"{NSE_HOME_URL}/api/option-chain-indices"
+#: Current NSE frontend option-chain endpoint (replaces the removed
+#: ``option-chain-indices`` path; NSE returns 404 for the legacy path).
+OPTION_CHAIN_URL = f"{NSE_HOME_URL}/api/option-chain-v3"
+OPTION_CHAIN_TYPE = "Indices"
 REFERER_URL = "https://www.nseindia.com/option-chain"
 IST = ZoneInfo("Asia/Kolkata")
 NSE_DATE_FORMAT = "%d-%b-%Y"
 NSE_TIMESTAMP_FORMAT = "%d-%b-%Y %H:%M:%S"
+REQUEST_TIMEOUT_SECONDS = 20
+
+#: Browser-like headers for the live feed, matching the working NSE providers
+#: (``providers/institutional_flow.py``) plus an explicit ``User-Agent`` and
+#: ``Accept-Language`` so NSE's Akamai layer is more likely to serve JSON.
+LIVE_HEADERS = {
+    "Accept": "application/json",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Referer": REFERER_URL,
+    "User-Agent": (
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    ),
+}
+
+#: Current live-verification status of the NSE option-chain feed (updated by the
+#: T12.3 follow-on, 2026-11-17). Kept machine-readable so tooling and tests can
+#: assert the provider's honest verification state.
+LIVE_VERIFICATION = (
+    "not-verified-live (retried 2026-11-17): the legacy option-chain-indices "
+    "endpoint returns HTTP 404 'Resource not found' (NSE moved to "
+    "option-chain-v3?type=Indices&symbol=, confirmed from the live page JS); "
+    "option-chain-v3 returns an empty JSON object from this sandbox (Akamai "
+    "JS-challenge-gated). Live data is never fabricated: fetch_option_chain "
+    "falls back to the labelled fixture and surfaces the precise failure via "
+    "on_live_error / OptionChainLiveError."
+)
 
 _FIXTURE_PATH = (
     Path(__file__).resolve().parents[2] / "tests" / "fixtures" / "option_chain_nifty.json"
 )
 
 
+class OptionChainLiveError(RuntimeError):
+    """A precise failure from the live NSE option-chain feed.
+
+    ``status_code`` is the HTTP status when the endpoint responded (``None``
+    for transport-level failures such as timeouts); ``symbol`` and ``url``
+    identify the request. Callers use this to distinguish a blocked endpoint,
+    a moved/removed endpoint (404), an empty/JS-challenge-gated payload (200
+    with no ``records``) from a genuinely-populated live response.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        symbol: str,
+        url: str,
+        status_code: int | None,
+    ) -> None:
+        super().__init__(message)
+        self.symbol = symbol
+        self.url = url
+        self.status_code = status_code
+
+
 def parse_option_chain(text: str, symbol: str) -> OptionChainSnapshot:
-    """Parse an NSE ``option-chain-indices`` JSON payload into a snapshot.
+    """Parse an NSE ``option-chain-v3`` JSON payload into a snapshot.
 
     The provider snapshots the near expiry (the first entry of
     ``records.expiryDates``); every ``records.data`` row for that expiry
@@ -154,36 +226,92 @@ def read_option_chain(path: str | Path, symbol: str) -> OptionChainSnapshot:
         return parse_option_chain(handle.read(), symbol)
 
 
-def fetch_option_chain(symbol: str) -> OptionChainSnapshot:
+def fetch_option_chain(
+    symbol: str,
+    on_live_error: Callable[[OptionChainLiveError], None] | None = None,
+) -> OptionChainSnapshot:
     """Fetch the near-expiry option-chain snapshot for ``symbol``.
 
     Live-with-stub-fallback (mirrors ``providers/calendar.py::
-    default_calendar_rows``): attempts the live NSE ``option-chain-indices``
-    feed and, on any failure, falls back to the bundled recorded fixture
+    default_calendar_rows``): attempts the live NSE ``option-chain-v3`` feed
+    and, on any failure (offline, HTTP error, blocked endpoint, empty payload,
+    or a malformed payload), falls back to the bundled recorded fixture
     (``source: fixture``) so the pipeline stays runnable offline. The fixture
     is never presented as live data.
+
+    The precise live failure is passed to ``on_live_error`` (when given) as an
+    :class:`OptionChainLiveError` carrying the ``symbol``, ``url`` and HTTP
+    ``status_code`` (``None`` for transport failures), so callers can log or
+    alert on blocked-vs-moved-vs-empty without ever fabricating data.
     """
     try:
         return _fetch_live_option_chain(symbol)
-    except Exception:
+    except Exception as exc:
+        if not isinstance(exc, OptionChainLiveError):
+            exc = OptionChainLiveError(
+                f"option-chain live fetch failed for {symbol}: {exc}",
+                symbol=symbol,
+                url=OPTION_CHAIN_URL,
+                status_code=None,
+            )
+        if on_live_error is not None:
+            on_live_error(exc)
         return fetch_option_chain_fixture(symbol)
 
 
 def _fetch_live_option_chain(symbol: str) -> OptionChainSnapshot:
-    """Fetch the live NSE option-chain JSON payload (lazy ``curl_cffi``)."""
-    from curl_cffi import requests
+    """Fetch the live NSE option-chain JSON payload (lazy ``curl_cffi``).
 
-    session: requests.Session = requests.Session(impersonate="chrome124")
-    session.get(NSE_HOME_URL, timeout=20)
+    Every failure mode is wrapped in :class:`OptionChainLiveError`: a non-200
+    response (e.g. the removed legacy endpoint), a ``200`` empty/JS-gated
+    payload, and transport errors (timeouts, connection errors).
+    """
+    session: Any = _requests_session()
+    session.get(NSE_HOME_URL, timeout=REQUEST_TIMEOUT_SECONDS)
     response = session.get(
         OPTION_CHAIN_URL,
-        params={"symbol": symbol},
-        headers={"Accept": "application/json", "Referer": REFERER_URL},
-        timeout=20,
+        params={"type": OPTION_CHAIN_TYPE, "symbol": symbol},
+        headers=LIVE_HEADERS,
+        timeout=REQUEST_TIMEOUT_SECONDS,
     )
-    if response.status_code != 200:
-        raise RuntimeError(f"option-chain fetch failed with HTTP {response.status_code}")
-    return parse_option_chain(response.text, symbol)
+    status_code: int | None = None
+    try:
+        status_code = int(response.status_code)
+    except (TypeError, ValueError):
+        status_code = None
+    if status_code != 200:
+        detail = ""
+        if status_code == 404:
+            detail = (
+                " (the legacy option-chain-indices path was removed by NSE; "
+                "the current frontend endpoint is option-chain-v3)"
+            )
+        raise OptionChainLiveError(
+            f"option-chain live fetch failed with HTTP {status_code} for {symbol}{detail}",
+            symbol=symbol,
+            url=OPTION_CHAIN_URL,
+            status_code=status_code,
+        )
+    try:
+        return parse_option_chain(response.text, symbol)
+    except ValueError as exc:
+        raise OptionChainLiveError(
+            f"option-chain live fetch returned an unusable payload for {symbol}: {exc}",
+            symbol=symbol,
+            url=OPTION_CHAIN_URL,
+            status_code=status_code,
+        ) from exc
+
+
+def _requests_session() -> Any:
+    """Create a Chrome-impersonating session (lazy ``curl_cffi`` import).
+
+    Split out so tests can inject a fake transport without importing
+    ``curl_cffi``.
+    """
+    from curl_cffi import requests
+
+    return requests.Session(impersonate="chrome124")
 
 
 def fetch_option_chain_fixture(symbol: str) -> OptionChainSnapshot:

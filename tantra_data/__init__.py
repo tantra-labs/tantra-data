@@ -158,6 +158,8 @@ from tantra_data.providers.news import (
     rows_to_articles,
 )
 from tantra_data.providers.option_chain import (
+    LIVE_VERIFICATION,
+    OptionChainLiveError,
     fetch_option_chain,
     fetch_option_chain_fixture,
     parse_option_chain,
@@ -188,6 +190,7 @@ from tantra_data.store.option_chain import DuckDbOptionChainStore
 __version__ = "0.1.0"
 
 __all__ = [
+    "LIVE_VERIFICATION",
     "VYAAPAAR_AVAILABLE",
     "BhavcopyRow",
     "BlockDeal",
@@ -248,6 +251,7 @@ __all__ = [
     "NewsArticle",
     "NewsReader",
     "NewsRepository",
+    "OptionChainLiveError",
     "OptionChainSnapshot",
     "OptionsChainReader",
     "ParquetCatalog",

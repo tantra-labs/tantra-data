@@ -1,6 +1,16 @@
 # `tantra-data` — Inter-Agent Handoff
 
 ## Phase / Slice Status
+* **Gap 0016 option-chain live verification follow-on (T12.3, 2026-11-17)**: retried the live NSE
+  feed — still NOT verified from the sandbox. Discovered (from the live page JS) that NSE removed
+  the legacy `option-chain-indices` path (now HTTP 404 "Resource not found"); the current frontend
+  endpoint is `/api/option-chain-v3?type=Indices&symbol=` which returns `200 {}` (empty) from the
+  sandbox — Akamai JS-challenge-gated. Provider hardened in the same change: targets the current
+  endpoint, browser-like headers (UA/Accept-Language/Accept/Referer), structured
+  `OptionChainLiveError` (status/url/symbol) surfaced via `fetch_option_chain(on_live_error=...)`,
+  `LIVE_VERIFICATION` status pinned machine-readably; CLI prints a `WARNING` on fallback. 8 new
+  live-vs-fallback contract tests in `tests/test_option_chain_live.py`; full `pytest` 247 green;
+  ruff check + format clean; mypy: 24 pre-existing errors at HEAD, zero new.
 * **nav_bars Decimal-quantize fix (2026-11-16)**: `loaders/amfi.py::nav_bars` now quantizes the
   NAV to 4dp (`Decimal("0.0001")`) — float binary artifacts previously carried 40+ scale digits
   into the parquet store's decimal128(38,10) columns and failed with "Rescaling Decimal value
@@ -98,6 +108,12 @@
   option (a) can use real benchmark bars.
 
 ## Decisions & Discoveries
+* **NSE option-chain API moved (2026-11-17)**: the legacy `/api/option-chain-indices` endpoint is
+  gone (404); the live frontend (`dist/js/sections/option-chain-v3.js`) calls
+  `/api/option-chain-v3?type=Indices&symbol=`. The v3 response keeps the same `records`
+  envelope (`expiryDates`/`data`/`timestamp`) so the existing parser applies unchanged. The v3 API
+  is Akamai JS-sensor-gated (`_abck`/`bm_sz` challenge cookies) — `curl_cffi` gets the cookies but
+  the API still returns `{}`, so live verification needs a host that can complete the JS challenge.
 * `pyproject.toml`: Made `tantra>=0.1.0` optional under `[project.optional-dependencies].native`
   (consistent with `_compat.py` runtime fallback); added console script `tantra-coverage`.
 * `ParquetCatalog`: Seamlessly reads both Hive layout (`{root}/<instrument>/year=YYYY/*.parquet`) and
@@ -167,6 +183,9 @@
   clean. Both gap docs moved to Closed Gaps; plan 0002 moved to Implemented Plans.
 
 ## Immediate Next Step
+* Option-chain live verification remains open: retry `option-chain-v3` from a host that can pass the
+  Akamai JS challenge (real browser / residential proxy); the provider stays on the documented,
+  never-fabricated `source: fixture` fallback until then (status pinned in `LIVE_VERIFICATION`).
 * Close gaps 0020/0021/0022: Rust `tantra-market-store` projection readers over
   `catalog/fundamentals/*.parquet` + `catalog/fundamental_ratios/*.parquet`
   (fundamentals), `catalog/mutual_funds|mf_nav|mf_returns/*.parquet` (mutual

@@ -1,9 +1,12 @@
 """Tests for the option-chain ingestion CLI and NSE provider (gap 0016).
 
-The live NSE ``option-chain-indices`` endpoint could not be verified from the
-sandbox (HTTP 404), so the provider's live-with-fixture-fallback is exercised
-by monkeypatching the live fetch to fail and asserting the labelled fixture
-snapshot is returned.
+The live NSE option-chain feed has never been verifiable from the sandbox: the
+legacy ``option-chain-indices`` endpoint returns HTTP 404 (NSE moved to
+``option-chain-v3``) and the current endpoint is Akamai JS-gated (empty ``{}``
+payload). The provider's live-with-fixture-fallback is therefore exercised with
+a mocked transport and by monkeypatching the live fetch to fail, asserting the
+labelled ``source: fixture`` snapshot is returned and the precise live failure
+is surfaced via ``on_live_error`` (never fabricated as live data).
 """
 
 from __future__ import annotations
@@ -68,7 +71,7 @@ def test_dry_run_cli_prints_without_writing(tmp_path, capsys, monkeypatch) -> No
     snapshot = fetch_option_chain_fixture("NIFTY")
     monkeypatch.setattr(
         "tantra_data.cli.ingest_option_chain.fetch_option_chain",
-        lambda symbol: snapshot,
+        lambda symbol, on_live_error=None: snapshot,
     )
     rc = ingest_cli_main(["--root", str(tmp_path), "--symbol", "NIFTY", "--dry-run"])
     captured = capsys.readouterr()
@@ -82,7 +85,7 @@ def test_once_cli_upserts_snapshot_into_store(tmp_path, capsys, monkeypatch) -> 
     snapshot = fetch_option_chain_fixture("NIFTY")
     monkeypatch.setattr(
         "tantra_data.cli.ingest_option_chain.fetch_option_chain",
-        lambda symbol: snapshot,
+        lambda symbol, on_live_error=None: snapshot,
     )
     rc = ingest_cli_main(["--root", str(tmp_path), "--symbol", "NIFTY", "--once"])
     captured = capsys.readouterr()
