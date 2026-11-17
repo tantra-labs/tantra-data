@@ -51,6 +51,13 @@ from tantra_data.domain.fundamentals import (
 from tantra_data.domain.institutional_flow import InstitutionalFlow
 from tantra_data.domain.macro import MacroObservation
 from tantra_data.domain.news import NewsArticle
+from tantra_data.domain.option_chain import (
+    GammaExposure,
+    OptionChainSnapshot,
+    StrikeGamma,
+    StrikePositioning,
+    compute_gamma_exposure,
+)
 from tantra_data.domain.profile import SymbolProfile
 from tantra_data.domain.quantity import Quantity, QuantityError, parse_quantity
 from tantra_data.ports.data_feeds import (
@@ -72,6 +79,7 @@ from tantra_data.ports.data_feeds import (
     ScreenResult,
     ScreenValue,
 )
+from tantra_data.ports.option_chain import OptionsChainReader
 from tantra_data.ports.repositories import (
     BlockDealsRepository,
     CalendarRepository,
@@ -149,6 +157,12 @@ from tantra_data.providers.news import (
     read_news,
     rows_to_articles,
 )
+from tantra_data.providers.option_chain import (
+    fetch_option_chain,
+    fetch_option_chain_fixture,
+    parse_option_chain,
+    read_option_chain,
+)
 from tantra_data.providers.profile import (
     ProfileRow,
     fetch_symbol_profiles,
@@ -169,6 +183,7 @@ from tantra_data.service.news_reader import PythonNewsReader
 from tantra_data.service.profile_reader import LakehouseProfileReader
 from tantra_data.service.reference_exporter import InMemoryReferenceExporter
 from tantra_data.service.screener import VectorizedScreener
+from tantra_data.store.option_chain import DuckDbOptionChainStore
 
 __version__ = "0.1.0"
 
@@ -201,6 +216,7 @@ __all__ = [
     "DuckDbFundamentalRatiosStore",
     "DuckDbFundamentalsStore",
     "DuckDbMacroStore",
+    "DuckDbOptionChainStore",
     "DuckDbProfileStore",
     "Filing",
     "FilingRow",
@@ -213,6 +229,7 @@ __all__ = [
     "FundamentalRatiosRepository",
     "FundamentalRecord",
     "FundamentalsReader",
+    "GammaExposure",
     "InMemoryReferenceExporter",
     "InstitutionalFlow",
     "InstitutionalFlowReader",
@@ -231,6 +248,8 @@ __all__ = [
     "NewsArticle",
     "NewsReader",
     "NewsRepository",
+    "OptionChainSnapshot",
+    "OptionsChainReader",
     "ParquetCatalog",
     "PeriodType",
     "ProfileReader",
@@ -253,14 +272,19 @@ __all__ = [
     "ScreenerReader",
     "Split",
     "StatementType",
+    "StrikeGamma",
+    "StrikePositioning",
     "SymbolProfile",
     "TantraDataService",
     "VectorizedScreener",
     "__version__",
+    "compute_gamma_exposure",
     "events_to_rows",
     "fetch_bhavcopy",
     "fetch_forex_factory",
     "fetch_fundamentals",
+    "fetch_option_chain",
+    "fetch_option_chain_fixture",
     "fetch_symbol_profiles",
     "from_record",
     "ingest_fundamentals",
@@ -276,6 +300,7 @@ __all__ = [
     "parse_institutional_flows",
     "parse_macro",
     "parse_news",
+    "parse_option_chain",
     "parse_quantity",
     "read_bhavcopy",
     "read_block_deals",
@@ -286,6 +311,7 @@ __all__ = [
     "read_institutional_flows",
     "read_macro",
     "read_news",
+    "read_option_chain",
     "rows_to_actions",
     "rows_to_articles",
     "rows_to_bars",

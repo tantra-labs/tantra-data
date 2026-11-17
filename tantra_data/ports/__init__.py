@@ -16,6 +16,7 @@ from tantra_data.ports.data_feeds import (
     ScreenResult,
     ScreenValue,
 )
+from tantra_data.ports.option_chain import OptionsChainReader
 from tantra_data.ports.repositories import (
     BAR_SCHEMA,
     CalendarRepository,
@@ -42,6 +43,7 @@ __all__ = [
     "MacroReader",
     "MacroSeriesRepository",
     "MarketReader",
+    "OptionsChainReader",
     "ProfileReader",
     "ProfileRepository",
     "ReferenceExporter",

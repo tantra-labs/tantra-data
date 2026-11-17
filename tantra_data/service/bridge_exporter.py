@@ -14,6 +14,9 @@ mutual-fund and IPO stores into per-date Parquet files under
 that the Rust runtime (``tantra-runtime-api-rest``) can ingest with its
 existing ``arrow``/``parquet`` deps, filtering
 ``filing_date <= as_of`` / ``ex_date <= as_of`` for point-in-time semantics.
+Intraday option-chain snapshots (gap 0016) export per-expiry snapshot files,
+a ``chain_as_of`` point-in-time projection, and a derived GEX series under
+``{root}/option_chain/{expiry}/``.
 
 Covers gaps 0007 (filings), 0008 (corporate actions), 0005 (block/bulk-deal
 disclosure ingestion), 0006 (news ingestion), 0017/0018/0019 (institutional
@@ -26,7 +29,7 @@ the projection.
 
 from __future__ import annotations
 
-from datetime import UTC, date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Protocol
@@ -53,6 +56,11 @@ from tantra_data.domain.institutional_flow import InstitutionalFlow
 from tantra_data.domain.ipos import IpoIssue, IpoSubscription
 from tantra_data.domain.mutual_funds import MutualFundMeta, MutualFundNav, MutualFundReturn
 from tantra_data.domain.news import NewsArticle
+from tantra_data.domain.option_chain import (
+    OptionChainSnapshot,
+    StrikePositioning,
+    compute_gamma_exposure,
+)
 
 __all__ = ["LakehouseBridgeExporter"]
 
@@ -239,6 +247,24 @@ class IpoSubscriptionsRepository(Protocol):
     def close(self) -> None: ...
 
 
+class OptionChainRepository(Protocol):
+    """Structural interface for the option-chain store consumed by the bridge.
+
+    ``snapshots_between`` is called with no arguments to enumerate every
+    snapshot for the per-expiry Parquet projections (gap 0016).
+    """
+
+    def snapshots_between(
+        self,
+        underlying: str | None = None,
+        expiry: date | None = None,
+        start: datetime | None = None,
+        end: datetime | None = None,
+    ) -> list[OptionChainSnapshot]: ...
+
+    def close(self) -> None: ...
+
+
 def _as_decimal128(value: Decimal | None) -> Decimal | None:
     """Quantize a value to the 4-dp ``Decimal128(18, 4)`` projection scale.
 
@@ -269,6 +295,7 @@ class LakehouseBridgeExporter:
         mf_returns: MutualFundReturnRepository | None = None,
         ipos: IposRepository | None = None,
         ipo_subscriptions: IpoSubscriptionsRepository | None = None,
+        option_chain: OptionChainRepository | None = None,
     ) -> None:
         self._filings = filings
         self._corporate_actions = corporate_actions
@@ -284,6 +311,7 @@ class LakehouseBridgeExporter:
         self._mf_returns = mf_returns
         self._ipos = ipos
         self._ipo_subscriptions = ipo_subscriptions
+        self._option_chain = option_chain
 
     def export_filings(self, root: str | Path) -> int:
         """Write ``{root}/catalog/filings/<filing_date>.parquet`` per filing date.
@@ -870,3 +898,232 @@ class LakehouseBridgeExporter:
             pq.write_table(table, path, version="2.6")
             count += 1
         return count
+
+    def export_option_chain(self, root: str | Path) -> int:
+        """Write intraday option-chain snapshots under ``{root}/option_chain/``.
+
+        Per expiry, one ``YYYY-MM-DD-HHMM.parquet`` file per snapshot (keyed by
+        the UTC ``as_of``), plus a ``chain_as_of.parquet`` point-in-time
+        projection whose rows carry, for every ``as_of``, the latest-known
+        value per ``(strike, option_type)`` — exactly the rows
+        ``chain_as_of`` returns at that timestamp (no look-ahead). All
+        financial columns are exact ``Decimal128(18, 4)``. Returns the number
+        of snapshot files written; returns 0 when no option-chain store is
+        configured.
+        """
+        if self._option_chain is None:
+            return 0
+        root = Path(root)
+        by_expiry, underlyings = self._option_chain_snapshots()
+
+        count = 0
+        for expiry in sorted(by_expiry):
+            by_as_of = by_expiry[expiry]
+            underlying = underlyings[expiry]
+            for as_of in sorted(by_as_of):
+                strikes = by_as_of[as_of]
+                table = self._option_chain_table(as_of, underlying, expiry, strikes)
+                path = root / "option_chain" / expiry.isoformat() / f"{as_of:%Y-%m-%d-%H%M}.parquet"
+                path.parent.mkdir(parents=True, exist_ok=True)
+                pq.write_table(table, path, version="2.6")
+                count += 1
+
+            projection = self._chain_as_of_projection(by_as_of, underlying, expiry)
+            proj_path = root / "option_chain" / expiry.isoformat() / "chain_as_of.parquet"
+            proj_path.parent.mkdir(parents=True, exist_ok=True)
+            pq.write_table(projection, proj_path, version="2.6")
+        return count
+
+    def export_option_chain_gex(
+        self,
+        root: str | Path,
+        lot_size: Decimal,
+        spot: Decimal,
+    ) -> int:
+        """Write ``{root}/option_chain/{expiry}/gex_series.parquet`` per expiry.
+
+        The derived GEX series has one row per ``(as_of, strike)`` with the
+        per-strike GEX (``gamma * open_interest * lot_size * spot``, exact
+        ``Decimal``) plus the per-snapshot ``net`` and ``flip`` computed via
+        :func:`~tantra_data.domain.option_chain.compute_gamma_exposure`.
+        Returns the number of expiry series files written; returns 0 when no
+        option-chain store is configured.
+        """
+        if self._option_chain is None:
+            return 0
+        root = Path(root)
+        by_expiry, underlyings = self._option_chain_snapshots()
+
+        count = 0
+        for expiry in sorted(by_expiry):
+            rows: list[dict[str, object]] = []
+            for as_of in sorted(by_expiry[expiry]):
+                snapshot = OptionChainSnapshot(
+                    as_of=as_of,
+                    underlying=underlyings[expiry],
+                    expiry=expiry,
+                    strikes=by_expiry[expiry][as_of],
+                )
+                exposure = compute_gamma_exposure(snapshot, lot_size=lot_size, spot=spot)
+                for per_strike in exposure.per_strike:
+                    rows.append(
+                        {
+                            "as_of": as_of,
+                            "expiry": expiry,
+                            "strike": per_strike.strike,
+                            "gamma": per_strike.gamma,
+                            "open_interest": per_strike.open_interest,
+                            "gex": per_strike.gex,
+                            "net": exposure.net,
+                            "flip": exposure.flip,
+                        }
+                    )
+            table = pa.Table.from_pydict(
+                {
+                    "as_of": pa.array(
+                        [row["as_of"] for row in rows], type=pa.timestamp("us", tz="UTC")
+                    ),
+                    "expiry": pa.array([row["expiry"] for row in rows], type=pa.date32()),
+                    "strike": pa.array(
+                        [_as_decimal128(row["strike"]) for row in rows], type=pa.decimal128(18, 4)
+                    ),
+                    "gamma": pa.array(
+                        [_as_decimal128(row["gamma"]) for row in rows], type=pa.decimal128(18, 4)
+                    ),
+                    "open_interest": pa.array(
+                        [_as_decimal128(row["open_interest"]) for row in rows],
+                        type=pa.decimal128(18, 4),
+                    ),
+                    "gex": pa.array(
+                        [_as_decimal128(row["gex"]) for row in rows], type=pa.decimal128(18, 4)
+                    ),
+                    "net": pa.array(
+                        [_as_decimal128(row["net"]) for row in rows], type=pa.decimal128(18, 4)
+                    ),
+                    "flip": pa.array(
+                        [_as_decimal128(row["flip"]) for row in rows], type=pa.decimal128(18, 4)
+                    ),
+                }
+            )
+            path = root / "option_chain" / expiry.isoformat() / "gex_series.parquet"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            pq.write_table(table, path, version="2.6")
+            count += 1
+        return count
+
+    def _option_chain_snapshots(
+        self,
+    ) -> tuple[
+        dict[date, dict[datetime, list[StrikePositioning]]],
+        dict[date, str],
+    ]:
+        """Group every stored snapshot by ``(expiry, as_of)`` and record the
+        underlying symbol per expiry."""
+        by_expiry: dict[date, dict[datetime, list[StrikePositioning]]] = {}
+        underlyings: dict[date, str] = {}
+        for snapshot in self._option_chain.snapshots_between():  # type: ignore[union-attr]
+            by_expiry.setdefault(snapshot.expiry, {}).setdefault(snapshot.as_of, []).extend(
+                snapshot.strikes
+            )
+            underlyings.setdefault(snapshot.expiry, snapshot.underlying)
+        return by_expiry, underlyings
+
+    @staticmethod
+    def _option_chain_table(
+        as_of: datetime,
+        underlying: str,
+        expiry: date,
+        strikes: list[StrikePositioning],
+    ) -> pa.Table:
+        """Build the per-snapshot Arrow table (exact ``Decimal128(18, 4)``)."""
+        return pa.Table.from_pydict(
+            {
+                "as_of": pa.array([as_of] * len(strikes), type=pa.timestamp("us", tz="UTC")),
+                "underlying": pa.array([underlying] * len(strikes), type=pa.string()),
+                "expiry": pa.array([expiry] * len(strikes), type=pa.date32()),
+                "strike": pa.array(
+                    [_as_decimal128(s.strike) for s in strikes], type=pa.decimal128(18, 4)
+                ),
+                "option_type": pa.array([s.option_type for s in strikes], type=pa.string()),
+                "open_interest": pa.array(
+                    [_as_decimal128(s.open_interest) for s in strikes],
+                    type=pa.decimal128(18, 4),
+                ),
+                "oi_change": pa.array(
+                    [_as_decimal128(s.oi_change) for s in strikes], type=pa.decimal128(18, 4)
+                ),
+                "implied_volatility": pa.array(
+                    [_as_decimal128(s.implied_volatility) for s in strikes],
+                    type=pa.decimal128(18, 4),
+                ),
+                "delta": pa.array(
+                    [_as_decimal128(s.delta) for s in strikes], type=pa.decimal128(18, 4)
+                ),
+                "gamma": pa.array(
+                    [_as_decimal128(s.gamma) for s in strikes], type=pa.decimal128(18, 4)
+                ),
+            }
+        )
+
+    @staticmethod
+    def _chain_as_of_projection(
+        by_as_of: dict[datetime, list[StrikePositioning]],
+        underlying: str,
+        expiry: date,
+    ) -> pa.Table:
+        """Build the point-in-time projection table for one expiry.
+
+        At every ``as_of`` boundary the projection carries the latest-known
+        value per ``(strike, option_type)`` — the same rows a ``chain_as_of``
+        read at that timestamp would return, with no look-ahead.
+        """
+        latest: dict[tuple[Decimal, str], StrikePositioning] = {}
+        rows: list[dict[str, object]] = []
+        for as_of in sorted(by_as_of):
+            for positioning in by_as_of[as_of]:
+                latest[(positioning.strike, positioning.option_type)] = positioning
+            for positioning in sorted(latest.values(), key=lambda s: (s.strike, s.option_type)):
+                rows.append(
+                    {
+                        "as_of": as_of,
+                        "underlying": underlying,
+                        "expiry": expiry,
+                        "strike": positioning.strike,
+                        "option_type": positioning.option_type,
+                        "open_interest": positioning.open_interest,
+                        "oi_change": positioning.oi_change,
+                        "implied_volatility": positioning.implied_volatility,
+                        "delta": positioning.delta,
+                        "gamma": positioning.gamma,
+                    }
+                )
+        return pa.Table.from_pydict(
+            {
+                "as_of": pa.array(
+                    [row["as_of"] for row in rows], type=pa.timestamp("us", tz="UTC")
+                ),
+                "underlying": pa.array([row["underlying"] for row in rows], type=pa.string()),
+                "expiry": pa.array([row["expiry"] for row in rows], type=pa.date32()),
+                "strike": pa.array(
+                    [_as_decimal128(row["strike"]) for row in rows], type=pa.decimal128(18, 4)
+                ),
+                "option_type": pa.array([row["option_type"] for row in rows], type=pa.string()),
+                "open_interest": pa.array(
+                    [_as_decimal128(row["open_interest"]) for row in rows],
+                    type=pa.decimal128(18, 4),
+                ),
+                "oi_change": pa.array(
+                    [_as_decimal128(row["oi_change"]) for row in rows], type=pa.decimal128(18, 4)
+                ),
+                "implied_volatility": pa.array(
+                    [_as_decimal128(row["implied_volatility"]) for row in rows],
+                    type=pa.decimal128(18, 4),
+                ),
+                "delta": pa.array(
+                    [_as_decimal128(row["delta"]) for row in rows], type=pa.decimal128(18, 4)
+                ),
+                "gamma": pa.array(
+                    [_as_decimal128(row["gamma"]) for row in rows], type=pa.decimal128(18, 4)
+                ),
+            }
+        )

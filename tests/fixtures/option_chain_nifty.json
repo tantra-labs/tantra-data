@@ -1,0 +1,191 @@
+{
+  "source": "fixture",
+  "info": "Recorded NSE option-chain-indices payload (docs/gaps/0016). Offline fallback only — this is a labelled fixture, never fabricated as live data. Live source: https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY",
+  "records": {
+    "timestamp": "16-Nov-2026 10:15:00",
+    "underlyingValue": 25150.35,
+    "expiryDates": ["26-Nov-2026", "31-Dec-2026"],
+    "data": [
+      {
+        "expiryDate": "26-Nov-2026",
+        "strikePrice": 24800,
+        "CE": {
+          "openInterest": 115230,
+          "changeinOpenInterest": -1210,
+          "impliedVolatility": 18.42,
+          "delta": 0.31,
+          "gamma": 0.000091
+        },
+        "PE": {
+          "openInterest": 92410,
+          "changeinOpenInterest": 2340,
+          "impliedVolatility": 17.35,
+          "delta": -0.69,
+          "gamma": 0.000104
+        }
+      },
+      {
+        "expiryDate": "26-Nov-2026",
+        "strikePrice": 24900,
+        "CE": {
+          "openInterest": 148720,
+          "changeinOpenInterest": 3120,
+          "impliedVolatility": 16.88,
+          "delta": 0.38,
+          "gamma": 0.000112
+        },
+        "PE": {
+          "openInterest": 110480,
+          "changeinOpenInterest": 1890,
+          "impliedVolatility": 15.94,
+          "delta": -0.62,
+          "gamma": 0.000121
+        }
+      },
+      {
+        "expiryDate": "26-Nov-2026",
+        "strikePrice": 25000,
+        "CE": {
+          "openInterest": 205310,
+          "changeinOpenInterest": 5870,
+          "impliedVolatility": 15.42,
+          "delta": 0.46,
+          "gamma": 0.000138
+        },
+        "PE": {
+          "openInterest": 184290,
+          "changeinOpenInterest": -3420,
+          "impliedVolatility": 14.88,
+          "delta": -0.54,
+          "gamma": 0.000145
+        }
+      },
+      {
+        "expiryDate": "26-Nov-2026",
+        "strikePrice": 25100,
+        "CE": {
+          "openInterest": 231840,
+          "changeinOpenInterest": 6120,
+          "impliedVolatility": 14.35,
+          "delta": 0.52,
+          "gamma": 0.000151
+        },
+        "PE": {
+          "openInterest": 219630,
+          "changeinOpenInterest": -1890,
+          "impliedVolatility": 14.21,
+          "delta": -0.48,
+          "gamma": 0.000157
+        }
+      },
+      {
+        "expiryDate": "26-Nov-2026",
+        "strikePrice": 25200,
+        "CE": {
+          "openInterest": 198450,
+          "changeinOpenInterest": 4210,
+          "impliedVolatility": 14.02,
+          "delta": 0.58,
+          "gamma": 0.000143
+        },
+        "PE": {
+          "openInterest": 172380,
+          "changeinOpenInterest": 3350,
+          "impliedVolatility": 14.19,
+          "delta": -0.42,
+          "gamma": 0.000149
+        }
+      },
+      {
+        "expiryDate": "26-Nov-2026",
+        "strikePrice": 25300,
+        "CE": {
+          "openInterest": 154210,
+          "changeinOpenInterest": -980,
+          "impliedVolatility": 14.58,
+          "delta": 0.63,
+          "gamma": 0.000127
+        },
+        "PE": {
+          "openInterest": 132840,
+          "changeinOpenInterest": 2190,
+          "impliedVolatility": 15.06,
+          "delta": -0.37,
+          "gamma": 0.000133
+        }
+      },
+      {
+        "expiryDate": "26-Nov-2026",
+        "strikePrice": 25400,
+        "CE": {
+          "openInterest": 110260,
+          "changeinOpenInterest": 1520,
+          "impliedVolatility": 15.48,
+          "delta": 0.68,
+          "gamma": 0.000108
+        },
+        "PE": {
+          "openInterest": 96740,
+          "changeinOpenInterest": 1210,
+          "impliedVolatility": 16.14,
+          "delta": -0.32,
+          "gamma": 0.000115
+        }
+      },
+      {
+        "expiryDate": "26-Nov-2026",
+        "strikePrice": 25500,
+        "CE": {
+          "openInterest": 82310,
+          "changeinOpenInterest": 640,
+          "impliedVolatility": 16.72,
+          "delta": 0.72,
+          "gamma": 0.000089
+        },
+        "PE": {
+          "openInterest": 78920,
+          "changeinOpenInterest": -430,
+          "impliedVolatility": 17.38,
+          "delta": -0.28,
+          "gamma": 0.000096
+        }
+      },
+      {
+        "expiryDate": "31-Dec-2026",
+        "strikePrice": 25000,
+        "CE": {
+          "openInterest": 31240,
+          "changeinOpenInterest": 210,
+          "impliedVolatility": 17.12,
+          "delta": 0.41,
+          "gamma": 0.000058
+        },
+        "PE": {
+          "openInterest": 28930,
+          "changeinOpenInterest": -150,
+          "impliedVolatility": 16.98,
+          "delta": -0.59,
+          "gamma": 0.000062
+        }
+      },
+      {
+        "expiryDate": "31-Dec-2026",
+        "strikePrice": 25500,
+        "CE": {
+          "openInterest": 21450,
+          "changeinOpenInterest": 120,
+          "impliedVolatility": 17.64,
+          "delta": 0.48,
+          "gamma": 0.000054
+        },
+        "PE": {
+          "openInterest": 19820,
+          "changeinOpenInterest": 90,
+          "impliedVolatility": 17.51,
+          "delta": -0.52,
+          "gamma": 0.000057
+        }
+      }
+    ]
+  }
+}
