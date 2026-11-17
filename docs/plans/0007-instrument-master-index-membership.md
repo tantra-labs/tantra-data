@@ -12,7 +12,7 @@ Native implementation only; no Trendlyne adapter.
 
 References: research [`trendlyne-screener-alerts-mcp.md`](../../../docs/research/trendlyne-screener-alerts-mcp.md) (F2);
 root roadmap [`0010`](../../../docs/plans/0010-screener-taxonomy-and-alerts.md).
-Depends on: [tantra-core 0004](../../../tantra-core/docs/plans/0004-classification-and-alert-wire-types.md) (slim `Sector`, `Industry`, `IndexId`, `MarketCapBucket` wire strings).
+Depends on: [tantra-core 0004 (Implemented 2026-11-17)](../../../tantra-core/docs/plans/README.md#implemented-plans) (slim `Sector`, `Industry`, `IndexId`, `MarketCapBucket` wire strings).
 
 ## 1. Context & Gaps Covered
 
