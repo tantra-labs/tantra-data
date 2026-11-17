@@ -1,6 +1,17 @@
 # `tantra-data` — Inter-Agent Handoff
 
 ## Phase / Slice Status
+* **Plan 0009 Phase-1 slice: whole-market NSE 1d bars in Lakehouse v3 (2026-11-18)**:
+  `providers/bhavcopy_archive.py` parses all three NSE bhavcopy dialects (UDiFF, legacy
+  `cm*bhav`, `sec_bhavdata_full`) into exact `Decimal` frames keyed by ISIN (`instrument_uid`);
+  sec rows (no ISIN, and whose cache filename is off by one day — the in-file date is used)
+  get ISINs from the nearest ISIN-bearing session. `adapters/lakehouse_v3.py` writes ADR 0004
+  §2.2 `market/bars/timeframe=1d/exchange=NSE/asset_class=equity/year=YYYY/part-0000.parquet`
+  (Decimal128(18,4), sorted `(instrument_uid, ts)`, zstd, 100K row groups, atomic, idempotent,
+  source precedence udiff > legacy > sec held across runs) plus `reference/aliases/exchange=NSE/`.
+  CLI `python -m tantra_data.cli ingest-bars-v3 [--download --start --end]`. Data imported
+  from the 1,236 cached sessions (2022-01 → 2026-10, ~2.9K equities/day; cache copied from the
+  legacy honba workspace). Pairs with the CAS/manifest Phases A–C shipped upstream (`ee802e9`/`398eeb7`/`d64c877`).
 * **Gap 0025 / plan 0009 closed (2026-11-17, ADR 0004 Lakehouse v3 Phases A–C)**: the
   storage-taxonomy redesign shipped — Phase A (`ee802e9`) `domain/lakehouse.py` types
   (`CatalogRef`/`CommitRecord`/`ManifestEntry`/`InstrumentAlias`) + `CatalogRepository` ref surface
@@ -231,6 +242,8 @@
 * Option-chain live verification remains open: retry `option-chain-v3` from a host that can pass the
   Akamai JS challenge (real browser / residential proxy); the provider stays on the documented,
   never-fabricated `source: fixture` fallback until then (status pinned in `LIVE_VERIFICATION`).
+* Extend v3 1d bars back to 2014 (`ingest-bars-v3 --download --start 2014-01-01 --end
+  2021-12-31`, then re-run without `--download`) — hits NSE archives, needs user go-ahead.
 * Close gaps 0020/0021/0022: Rust `tantra-market-store` projection readers over
   `catalog/fundamentals/*.parquet` + `catalog/fundamental_ratios/*.parquet`
   (fundamentals), `catalog/mutual_funds|mf_nav|mf_returns/*.parquet` (mutual
