@@ -63,6 +63,7 @@ from tantra_data.domain.option_chain import (
     StrikePositioning,
     compute_gamma_exposure,
 )
+from tantra_data.domain.shareholding import InsiderDisclosure, PledgeRecord, ShareholdingPattern
 from tantra_data.domain.trading_holidays import TradingHoliday
 
 __all__ = ["LakehouseBridgeExporter"]
@@ -280,6 +281,36 @@ class TradingHolidayRepository(Protocol):
     def close(self) -> None: ...
 
 
+class ShareholdingRepository(Protocol):
+    """Structural interface for the shareholding-pattern store consumed by the
+    bridge (gap 0024). ``all_patterns`` is called with no arguments so the
+    whole point-in-time series can be projected per filing date."""
+
+    def all_patterns(self) -> list[ShareholdingPattern]: ...
+
+    def close(self) -> None: ...
+
+
+class PledgeRepository(Protocol):
+    """Structural interface for the pledge store consumed by the bridge
+    (gap 0024). ``all_pledges`` is called with no arguments so the whole
+    snapshot series can be projected per quarter end."""
+
+    def all_pledges(self) -> list[PledgeRecord]: ...
+
+    def close(self) -> None: ...
+
+
+class InsiderDisclosureRepository(Protocol):
+    """Structural interface for the insider-disclosure store consumed by the
+    bridge (gap 0024). ``all_disclosures`` is called with no arguments so the
+    whole series can be projected per intimation date."""
+
+    def all_disclosures(self) -> list[InsiderDisclosure]: ...
+
+    def close(self) -> None: ...
+
+
 def _as_decimal128(value: Decimal | None) -> Decimal | None:
     """Quantize a value to the 4-dp ``Decimal128(18, 4)`` projection scale.
 
@@ -312,6 +343,9 @@ class LakehouseBridgeExporter:
         ipo_subscriptions: IpoSubscriptionsRepository | None = None,
         option_chain: OptionChainRepository | None = None,
         trading_holidays: TradingHolidayRepository | None = None,
+        shareholding: ShareholdingRepository | None = None,
+        pledge: PledgeRepository | None = None,
+        insider: InsiderDisclosureRepository | None = None,
     ) -> None:
         self._filings = filings
         self._corporate_actions = corporate_actions
@@ -329,6 +363,9 @@ class LakehouseBridgeExporter:
         self._ipo_subscriptions = ipo_subscriptions
         self._option_chain = option_chain
         self._trading_holidays = trading_holidays
+        self._shareholding = shareholding
+        self._pledge = pledge
+        self._insider = insider
 
     def export_filings(self, root: str | Path) -> int:
         """Write ``{root}/catalog/filings/<filing_date>.parquet`` per filing date.
@@ -611,6 +648,177 @@ class LakehouseBridgeExporter:
                 }
             )
             path = root / "trading_holidays" / f"{year}.parquet"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            pq.write_table(table, path, version="2.6")
+            count += 1
+        return count
+
+    def export_shareholding(self, root: str | Path) -> int:
+        """Write ``{root}/catalog/shareholding/<filing_date>.parquet`` per date.
+
+        Shareholding-pattern rows are grouped by the date the filing became
+        public (``filing_date``), preserving point-in-time semantics: a
+        consumer filtering ``filing_date <= as_of`` sees exactly the pattern
+        known at that date (no look-ahead). Percentages are exact
+        ``Decimal128(18, 4)``. Returns the number of files written; returns 0
+        when no shareholding store is configured.
+        """
+        if self._shareholding is None:
+            return 0
+        root = Path(root)
+        by_date: dict[date, list[ShareholdingPattern]] = {}
+        for pattern in self._shareholding.all_patterns():
+            by_date.setdefault(pattern.filing_date, []).append(pattern)
+
+        count = 0
+        for filing_date, patterns in sorted(by_date.items()):
+            table = pa.Table.from_pydict(
+                {
+                    "filing_date": pa.array([p.filing_date for p in patterns], type=pa.date32()),
+                    "instrument": pa.array([p.instrument for p in patterns], type=pa.string()),
+                    "company_name": pa.array([p.company_name for p in patterns], type=pa.string()),
+                    "exchange": pa.array([p.exchange for p in patterns], type=pa.string()),
+                    "quarter_end": pa.array([p.quarter_end for p in patterns], type=pa.date32()),
+                    "category": pa.array([p.category for p in patterns], type=pa.string()),
+                    "no_of_shares": pa.array([p.no_of_shares for p in patterns], type=pa.int64()),
+                    "shareholding_pct": pa.array(
+                        [_as_decimal128(p.shareholding_pct) for p in patterns],
+                        type=pa.decimal128(18, 4),
+                    ),
+                    "source": pa.array([p.source for p in patterns], type=pa.string()),
+                }
+            )
+            path = root / "shareholding" / f"{filing_date.isoformat()}.parquet"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            pq.write_table(table, path, version="2.6")
+            count += 1
+        return count
+
+    def export_pledge(self, root: str | Path) -> int:
+        """Write ``{root}/catalog/pledge/<quarter_end>.parquet`` per quarter.
+
+        Promoter-pledge snapshots are grouped by the shareholding-pattern
+        quarter end they refer to (``quarter_end``); each file carries the
+        ``broadcast_date`` so a consumer can apply its own point-in-time
+        filter (``broadcast_date <= as_of``). Percentages are exact
+        ``Decimal128(18, 4)``. Returns the number of files written; returns 0
+        when no pledge store is configured.
+        """
+        if self._pledge is None:
+            return 0
+        root = Path(root)
+        by_quarter: dict[date, list[PledgeRecord]] = {}
+        for record in self._pledge.all_pledges():
+            by_quarter.setdefault(record.quarter_end, []).append(record)
+
+        count = 0
+        for quarter_end, records in sorted(by_quarter.items()):
+            table = pa.Table.from_pydict(
+                {
+                    "quarter_end": pa.array([r.quarter_end for r in records], type=pa.date32()),
+                    "instrument": pa.array([r.instrument for r in records], type=pa.string()),
+                    "company_name": pa.array([r.company_name for r in records], type=pa.string()),
+                    "broadcast_date": pa.array(
+                        [r.broadcast_date for r in records], type=pa.date32()
+                    ),
+                    "promoter_holding_pct": pa.array(
+                        [_as_decimal128(r.promoter_holding_pct) for r in records],
+                        type=pa.decimal128(18, 4),
+                    ),
+                    "pledged_shares": pa.array(
+                        [r.pledged_shares for r in records], type=pa.int64()
+                    ),
+                    "pledged_pct": pa.array(
+                        [_as_decimal128(r.pledged_pct) for r in records],
+                        type=pa.decimal128(18, 4),
+                    ),
+                    "promoter_shares": pa.array(
+                        [r.promoter_shares for r in records], type=pa.int64()
+                    ),
+                    "total_issued_shares": pa.array(
+                        [r.total_issued_shares for r in records], type=pa.int64()
+                    ),
+                    "source": pa.array([r.source for r in records], type=pa.string()),
+                }
+            )
+            path = root / "pledge" / f"{quarter_end.isoformat()}.parquet"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            pq.write_table(table, path, version="2.6")
+            count += 1
+        return count
+
+    def export_insider_disclosures(self, root: str | Path) -> int:
+        """Write ``{root}/catalog/insider_disclosures/<intimation_date>.parquet`` per date.
+
+        Insider-trading disclosures are grouped by the date they were
+        intimated to the exchange (``intimation_date``), preserving
+        point-in-time semantics: a consumer filtering
+        ``intimation_date <= as_of`` sees exactly the disclosures known at
+        that date (no look-ahead). Values are exact ``Decimal128(18, 4)``.
+        Returns the number of files written; returns 0 when no insider store
+        is configured.
+        """
+        if self._insider is None:
+            return 0
+        root = Path(root)
+        by_date: dict[date, list[InsiderDisclosure]] = {}
+        for disclosure in self._insider.all_disclosures():
+            by_date.setdefault(disclosure.intimation_date, []).append(disclosure)
+
+        count = 0
+        for intimation_date, disclosures in sorted(by_date.items()):
+            table = pa.Table.from_pydict(
+                {
+                    "intimation_date": pa.array(
+                        [d.intimation_date for d in disclosures], type=pa.date32()
+                    ),
+                    "instrument": pa.array([d.instrument for d in disclosures], type=pa.string()),
+                    "company_name": pa.array(
+                        [d.company_name for d in disclosures], type=pa.string()
+                    ),
+                    "disclosure_id": pa.array(
+                        [d.disclosure_id for d in disclosures], type=pa.int64()
+                    ),
+                    "trade_date": pa.array([d.trade_date for d in disclosures], type=pa.date32()),
+                    "name": pa.array([d.name for d in disclosures], type=pa.string()),
+                    "person_category": pa.array(
+                        [d.person_category for d in disclosures], type=pa.string()
+                    ),
+                    "transaction_type": pa.array(
+                        [d.transaction_type for d in disclosures], type=pa.string()
+                    ),
+                    "acq_mode": pa.array([d.acq_mode for d in disclosures], type=pa.string()),
+                    "acquired_shares": pa.array(
+                        [d.acquired_shares for d in disclosures], type=pa.int64()
+                    ),
+                    "buy_quantity": pa.array(
+                        [d.buy_quantity for d in disclosures], type=pa.int64()
+                    ),
+                    "sell_quantity": pa.array(
+                        [d.sell_quantity for d in disclosures], type=pa.int64()
+                    ),
+                    "value": pa.array(
+                        [_as_decimal128(d.value) for d in disclosures],
+                        type=pa.decimal128(18, 4),
+                    ),
+                    "before_shares": pa.array(
+                        [d.before_shares for d in disclosures], type=pa.int64()
+                    ),
+                    "before_pct": pa.array(
+                        [_as_decimal128(d.before_pct) for d in disclosures],
+                        type=pa.decimal128(18, 4),
+                    ),
+                    "after_shares": pa.array(
+                        [d.after_shares for d in disclosures], type=pa.int64()
+                    ),
+                    "after_pct": pa.array(
+                        [_as_decimal128(d.after_pct) for d in disclosures],
+                        type=pa.decimal128(18, 4),
+                    ),
+                    "source": pa.array([d.source for d in disclosures], type=pa.string()),
+                }
+            )
+            path = root / "insider_disclosures" / f"{intimation_date.isoformat()}.parquet"
             path.parent.mkdir(parents=True, exist_ok=True)
             pq.write_table(table, path, version="2.6")
             count += 1

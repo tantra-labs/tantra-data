@@ -60,6 +60,12 @@ from tantra_data.domain.option_chain import (
 )
 from tantra_data.domain.profile import SymbolProfile
 from tantra_data.domain.quantity import Quantity, QuantityError, parse_quantity
+from tantra_data.domain.shareholding import (
+    InsiderDisclosure,
+    PledgeRecord,
+    ShareholdingPattern,
+    pledged_pct_of_promoter,
+)
 from tantra_data.domain.trading_holidays import TradingHoliday
 from tantra_data.ports.data_feeds import (
     BlockDealsReader,
@@ -93,6 +99,11 @@ from tantra_data.ports.repositories import (
     NewsRepository,
     ProfileRepository,
 )
+from tantra_data.ports.shareholding import (
+    InsiderDisclosureReader,
+    PledgeReader,
+    ShareholdingReader,
+)
 from tantra_data.ports.trading_holidays import TradingHolidayReader
 from tantra_data.providers.bhavcopy import (
     BhavcopyRow,
@@ -107,6 +118,18 @@ from tantra_data.providers.block_deals import (
     read_block_deals,
     read_bulk_deals,
     rows_to_deals,
+)
+from tantra_data.providers.bse_shareholding import (
+    LIVE_VERIFICATION as BSE_SHAREHOLDING_LIVE_VERIFICATION,
+)
+from tantra_data.providers.bse_shareholding import (
+    BseShareholdingLiveError,
+    QuarterlyShareholdingFiling,
+    fetch_shareholding_patterns,
+    fetch_shareholding_patterns_fixture,
+    normalize_category,
+    parse_bse_ixbrl,
+    parse_shareholding_index,
 )
 from tantra_data.providers.calendar import (
     CalendarRow,
@@ -159,6 +182,24 @@ from tantra_data.providers.news import (
     read_news,
     rows_to_articles,
 )
+from tantra_data.providers.nse_pit import (
+    LIVE_VERIFICATION as NSE_PIT_LIVE_VERIFICATION,
+)
+from tantra_data.providers.nse_pit import (
+    NsePitLiveError,
+    fetch_insider_disclosures,
+    fetch_insider_disclosures_fixture,
+    parse_pit_payload,
+)
+from tantra_data.providers.nse_pledge import (
+    LIVE_VERIFICATION as NSE_PLEDGE_LIVE_VERIFICATION,
+)
+from tantra_data.providers.nse_pledge import (
+    NsePledgeLiveError,
+    fetch_pledge_records,
+    fetch_pledge_records_fixture,
+    parse_pledge_payload,
+)
 from tantra_data.providers.option_chain import (
     LIVE_VERIFICATION,
     OptionChainLiveError,
@@ -194,24 +235,34 @@ from tantra_data.service.news_reader import PythonNewsReader
 from tantra_data.service.profile_reader import LakehouseProfileReader
 from tantra_data.service.reference_exporter import InMemoryReferenceExporter
 from tantra_data.service.screener import VectorizedScreener
+from tantra_data.service.shareholding_reader import (
+    PythonInsiderDisclosureReader,
+    PythonPledgeReader,
+    PythonShareholdingReader,
+)
 from tantra_data.service.trading_holidays_reader import PythonTradingHolidayReader
 from tantra_data.store.mutual_funds import (
     DuckDbMutualFundsStore,
     MutualFundsStoreError,
 )
 from tantra_data.store.option_chain import DuckDbOptionChainStore
+from tantra_data.store.shareholding import DuckDbShareholdingStore
 from tantra_data.store.trading_holidays import DuckDbTradingHolidayStore
 
 __version__ = "0.1.0"
 
 __all__ = [
+    "BSE_SHAREHOLDING_LIVE_VERIFICATION",
     "LIVE_VERIFICATION",
+    "NSE_PIT_LIVE_VERIFICATION",
+    "NSE_PLEDGE_LIVE_VERIFICATION",
     "VYAAPAAR_AVAILABLE",
     "BhavcopyRow",
     "BlockDeal",
     "BlockDealsReader",
     "BlockDealsRepository",
     "Bonus",
+    "BseShareholdingLiveError",
     "CalendarEvent",
     "CalendarReader",
     "CalendarRepository",
@@ -237,6 +288,7 @@ __all__ = [
     "DuckDbMutualFundsStore",
     "DuckDbOptionChainStore",
     "DuckDbProfileStore",
+    "DuckDbShareholdingStore",
     "DuckDbTradingHolidayStore",
     "Filing",
     "FilingRow",
@@ -251,6 +303,8 @@ __all__ = [
     "FundamentalsReader",
     "GammaExposure",
     "InMemoryReferenceExporter",
+    "InsiderDisclosure",
+    "InsiderDisclosureReader",
     "InstitutionalFlow",
     "InstitutionalFlowReader",
     "InstitutionalFlowRepository",
@@ -269,23 +323,31 @@ __all__ = [
     "NewsArticle",
     "NewsReader",
     "NewsRepository",
+    "NsePitLiveError",
+    "NsePledgeLiveError",
     "OptionChainLiveError",
     "OptionChainSnapshot",
     "OptionsChainReader",
     "ParquetCatalog",
     "PeriodType",
+    "PledgeReader",
+    "PledgeRecord",
     "ProfileReader",
     "ProfileRepository",
     "ProfileRow",
     "PythonBlockDealsReader",
     "PythonDeliveryReader",
     "PythonFundamentalsReader",
+    "PythonInsiderDisclosureReader",
     "PythonInstitutionalFlowReader",
     "PythonMacroReader",
     "PythonNewsReader",
+    "PythonPledgeReader",
+    "PythonShareholdingReader",
     "PythonTradingHolidayReader",
     "Quantity",
     "QuantityError",
+    "QuarterlyShareholdingFiling",
     "ReferenceExporter",
     "Rights",
     "ScreenCondition",
@@ -293,6 +355,8 @@ __all__ = [
     "ScreenResult",
     "ScreenValue",
     "ScreenerReader",
+    "ShareholdingPattern",
+    "ShareholdingReader",
     "Split",
     "StatementType",
     "StrikeGamma",
@@ -309,15 +373,23 @@ __all__ = [
     "fetch_bhavcopy",
     "fetch_forex_factory",
     "fetch_fundamentals",
+    "fetch_insider_disclosures",
+    "fetch_insider_disclosures_fixture",
     "fetch_option_chain",
     "fetch_option_chain_fixture",
+    "fetch_pledge_records",
+    "fetch_pledge_records_fixture",
+    "fetch_shareholding_patterns",
+    "fetch_shareholding_patterns_fixture",
     "fetch_symbol_profiles",
     "fetch_trading_holidays",
     "fetch_trading_holidays_fixture",
     "from_record",
     "ingest_fundamentals",
+    "normalize_category",
     "parse_bhavcopy",
     "parse_block_deals",
+    "parse_bse_ixbrl",
     "parse_bulk_deals",
     "parse_calendar",
     "parse_corporate_actions",
@@ -329,8 +401,12 @@ __all__ = [
     "parse_macro",
     "parse_news",
     "parse_option_chain",
+    "parse_pit_payload",
+    "parse_pledge_payload",
     "parse_quantity",
+    "parse_shareholding_index",
     "parse_trading_holidays",
+    "pledged_pct_of_promoter",
     "read_bhavcopy",
     "read_block_deals",
     "read_bulk_deals",

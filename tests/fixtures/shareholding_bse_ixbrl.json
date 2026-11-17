@@ -1,0 +1,191 @@
+{
+  "source": "fixture",
+  "info": "Recorded 2026-11-17 from BSE Corp_Shareholding_ng/w (scripcode=500325) latest XBRLAttachment /XBRLFILES/SHPXBRLDataXML/500325_21102026154832_SP.html; filing broadcast 2026-10-21T15:48:00, quarter end 2026-09-30T00:00:00. Rows are the SEBI summary-category ShareholdingAsAPercentageOfTotalNumberOfShares facts (category contexts _ContextI). Percentages and share counts exact Decimal/int.",
+  "exchange": "BSE",
+  "scripcode": "500325",
+  "company_name": "Reliance Industries Ltd",
+  "filing_date": "2026-10-21",
+  "quarter_end": "2026-09-30",
+  "rows": [
+    {
+      "category": "AlternativeInvestmentFunds",
+      "no_of_shares": "23041158",
+      "shareholding_pct": "0.17"
+    },
+    {
+      "category": "AssociateCompaniesOrSubsidiaries",
+      "no_of_shares": "733866",
+      "shareholding_pct": "0.01"
+    },
+    {
+      "category": "Banks",
+      "no_of_shares": "6698483",
+      "shareholding_pct": "0.05"
+    },
+    {
+      "category": "BodiesCorporate",
+      "no_of_shares": "74269399",
+      "shareholding_pct": "0.56"
+    },
+    {
+      "category": "CentralGovernmentOrPresidentOfIndia",
+      "no_of_shares": "12460181",
+      "shareholding_pct": "0.09"
+    },
+    {
+      "category": "DirectorsAndDirectorsRelatives",
+      "no_of_shares": "19710463",
+      "shareholding_pct": "0.15"
+    },
+    {
+      "category": "ForeignDirectInvestment",
+      "no_of_shares": "22336573",
+      "shareholding_pct": "0.17"
+    },
+    {
+      "category": "ForeignNationals",
+      "no_of_shares": "112626",
+      "shareholding_pct": "0.00"
+    },
+    {
+      "category": "Governments",
+      "no_of_shares": "12881044",
+      "shareholding_pct": "0.10"
+    },
+    {
+      "category": "Indian",
+      "no_of_shares": "6715496096",
+      "shareholding_pct": "50.44"
+    },
+    {
+      "category": "IndividualsOrHinduUndividedFamily",
+      "no_of_shares": "112002852",
+      "shareholding_pct": "0.84"
+    },
+    {
+      "category": "InstitutionsDomestic",
+      "no_of_shares": "2890889750",
+      "shareholding_pct": "21.72"
+    },
+    {
+      "category": "InstitutionsForeign",
+      "no_of_shares": "2219391919",
+      "shareholding_pct": "16.67"
+    },
+    {
+      "category": "InstitutionsForeignPortfolioInvestorCategoryOne",
+      "no_of_shares": "2127778524",
+      "shareholding_pct": "15.98"
+    },
+    {
+      "category": "InstitutionsForeignPortfolioInvestorCategoryTwo",
+      "no_of_shares": "68925212",
+      "shareholding_pct": "0.52"
+    },
+    {
+      "category": "InsuranceCompanies",
+      "no_of_shares": "1261044600",
+      "shareholding_pct": "9.47"
+    },
+    {
+      "category": "InvestorEducationAndProtectionFund",
+      "no_of_shares": "85397410",
+      "shareholding_pct": "0.64"
+    },
+    {
+      "category": "KeyManagerialPersonnel",
+      "no_of_shares": "709300",
+      "shareholding_pct": "0.01"
+    },
+    {
+      "category": "MutualFundsOrUTI",
+      "no_of_shares": "1372782469",
+      "shareholding_pct": "10.31"
+    },
+    {
+      "category": "NBFCsRegisteredWithRBI",
+      "no_of_shares": "208752",
+      "shareholding_pct": "0.00"
+    },
+    {
+      "category": "NonInstitutions",
+      "no_of_shares": "1474090045",
+      "shareholding_pct": "11.07"
+    },
+    {
+      "category": "NonResidentIndians",
+      "no_of_shares": "76562946",
+      "shareholding_pct": "0.58"
+    },
+    {
+      "category": "OtherFinancialInstitutions",
+      "no_of_shares": "381668",
+      "shareholding_pct": "0.00"
+    },
+    {
+      "category": "OtherIndianShareholders",
+      "no_of_shares": "6603493244",
+      "shareholding_pct": "49.60"
+    },
+    {
+      "category": "OtherInstitutionsForeign",
+      "no_of_shares": "351610",
+      "shareholding_pct": "0.00"
+    },
+    {
+      "category": "OtherNonInstitutions",
+      "no_of_shares": "61483997",
+      "shareholding_pct": "0.46"
+    },
+    {
+      "category": "ProvidentFundsOrPensionFunds",
+      "no_of_shares": "215963942",
+      "shareholding_pct": "1.62"
+    },
+    {
+      "category": "PublicShareholding",
+      "no_of_shares": "6597252758",
+      "shareholding_pct": "49.56"
+    },
+    {
+      "category": "RelativesOfPromotersOtherThanPromoterGroup",
+      "no_of_shares": "524490",
+      "shareholding_pct": "0.00"
+    },
+    {
+      "category": "ResidentIndividualShareholdersHoldingNominalShareCapitalInExcessOfRsTwoLakh",
+      "no_of_shares": "190660176",
+      "shareholding_pct": "1.43"
+    },
+    {
+      "category": "ResidentIndividualShareholdersHoldingNominalShareCapitalUpToRsTwoLakh",
+      "no_of_shares": "963925372",
+      "shareholding_pct": "7.24"
+    },
+    {
+      "category": "ShareholdingByCompaniesOrBodiesCorporateWhereCentralOrStateGovernmentIsPromoter",
+      "no_of_shares": "419663",
+      "shareholding_pct": "0.00"
+    },
+    {
+      "category": "ShareholdingOfPromoterAndPromoterGroup",
+      "no_of_shares": "6715496096",
+      "shareholding_pct": "50.44"
+    },
+    {
+      "category": "ShareholdingPattern",
+      "no_of_shares": "13312748854",
+      "shareholding_pct": "100.00"
+    },
+    {
+      "category": "SovereignWealthFundsDomestic",
+      "no_of_shares": "10768678",
+      "shareholding_pct": "0.08"
+    },
+    {
+      "category": "StateGovernmentsOrGovernors",
+      "no_of_shares": "1200",
+      "shareholding_pct": "0.00"
+    }
+  ]
+}

@@ -1,6 +1,25 @@
 # `tantra-data` — Inter-Agent Handoff
 
 ## Phase / Slice Status
+* **Gap 0024 closed (2026-11-17, T17.5)**: shipped shareholding / promoter-pledge / SEBI-PIT
+  insider-disclosure ingestion — three **verified-live** sources (recorded before any provider code):
+  BSE `Corp_Shareholding_ng/w` + iXBRL (HTTP 200, 107 quarterly filings / 36 summary categories for
+  scrip 500325), NSE `corporate-pledgedata` (HTTP 200, 1,555 company pledge snapshots), NSE
+  `corporates-pit?symbol=RELIANCE` (HTTP 200, 20 structured PIT disclosures). `domain/shareholding.py`
+  (`ShareholdingPattern`/`PledgeRecord`/`InsiderDisclosure`, exact `Decimal` percentages + int share
+  counts, `pledged_pct_of_promoter`), `providers/bse_shareholding.py` / `nse_pledge.py` / `nse_pit.py`
+  (live-with-fixture-fallback, `source: fixture` labels, `on_live_error`, `LIVE_VERIFICATION` pinned),
+  `store/shareholding.py` `DuckDbShareholdingStore` (`{root}/shareholding.duckdb`, idempotent,
+  point-in-time no-look-ahead `patterns_as_of`/`pledges_as_of`), `ports/shareholding.py` +
+  `service/shareholding_reader.py`, `cli/ingest_shareholding.py`, bridge
+  `export_shareholding`/`export_pledge`/`export_insider_disclosures` →
+  `catalog/shareholding|pledge|insider_disclosures/*.parquet` (Decimal128(18,4)). **Stays open &
+  documented (never fabricated)**: SAST Reg 29/31 (NSE sast endpoints HTTP 404; announcements feed is
+  attachment-only), analyst estimates (no licensable free source), and numeric pledge rows from BSE
+  iXBRL (taxonomy exposes only the boolean encumbrance flag — NSE pledgedata covers the numbers). 37
+  tests in `tests/test_shareholding.py`; full `pytest` green (372); ruff check + format clean; mypy:
+  pre-existing errors only (option_chain.py + option-chain sections of bridge_exporter.py at HEAD), zero
+  new on the new modules.
 * **Gap 0023 closed (2026-11-17, T17.4)**: shipped `tantra_data/store/mutual_funds.py`
   (`DuckDbMutualFundsStore` at `{root}/mutual_funds.duckdb`: `mf_schemes`, `mf_fund_stats`,
   `mf_holdings`, `mf_nav`, `mf_returns`; exact `DECIMAL` columns). Lookthrough
@@ -192,6 +211,12 @@
   clean. Both gap docs moved to Closed Gaps; plan 0002 moved to Implemented Plans.
 
 ## Immediate Next Step
+* Close gap 0024's Rust bridge: `tantra-market-store` projection readers over
+  `catalog/shareholding/*.parquet` + `catalog/pledge/*.parquet` +
+  `catalog/insider_disclosures/*.parquet` (per gaps 0017/0018/0019), then wire the
+  Shareholding / Forecaster / Red-Flag screener categories and insider-deal alerts
+  (root plan 0010 F9). SAST Reg 29/31 and analyst estimates stay open-and-documented
+  (no structured/licensable free source verified).
 * Option-chain live verification remains open: retry `option-chain-v3` from a host that can pass the
   Akamai JS challenge (real browser / residential proxy); the provider stays on the documented,
   never-fabricated `source: fixture` fallback until then (status pinned in `LIVE_VERIFICATION`).

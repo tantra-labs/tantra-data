@@ -29,6 +29,7 @@ from tantra_data.adapters.mutual_fund_return_store import DuckDbMutualFundReturn
 from tantra_data.adapters.mutual_fund_store import DuckDbMutualFundStore
 from tantra_data.adapters.news_store import DuckDbNewsStore
 from tantra_data.service.bridge_exporter import LakehouseBridgeExporter
+from tantra_data.store.shareholding import DuckDbShareholdingStore
 from tantra_data.store.trading_holidays import DuckDbTradingHolidayStore
 
 
@@ -69,6 +70,9 @@ def main(argv: list[str] | None = None) -> int:
             "ipos",
             "ipo-subscriptions",
             "trading-holidays",
+            "shareholding",
+            "pledge",
+            "insider-disclosures",
             "all",
         ),
         default="all",
@@ -97,6 +101,7 @@ def main(argv: list[str] | None = None) -> int:
     # `cli/ingest_trading_holidays.py` as {root}/trading_holidays.duckdb); the
     # catalog root is its `catalog/` child, so the store root is the parent.
     trading_holidays = DuckDbTradingHolidayStore(catalog_root.parent)
+    shareholding = DuckDbShareholdingStore(catalog_root.parent)
     exporter = LakehouseBridgeExporter(
         filings,
         corporate_actions,
@@ -113,6 +118,9 @@ def main(argv: list[str] | None = None) -> int:
         ipos=ipos,
         ipo_subscriptions=ipo_subscriptions,
         trading_holidays=trading_holidays,
+        shareholding=shareholding,
+        pledge=shareholding,
+        insider=shareholding,
     )
     try:
         if args.dataset in ("filings", "all"):
@@ -160,6 +168,15 @@ def main(argv: list[str] | None = None) -> int:
         if args.dataset in ("trading-holidays", "all"):
             n_holidays = exporter.export_trading_holidays(catalog_root)
             print(f"Exported {n_holidays} trading-holiday files")
+        if args.dataset in ("shareholding", "all"):
+            n_patterns = exporter.export_shareholding(catalog_root)
+            print(f"Exported {n_patterns} shareholding files")
+        if args.dataset in ("pledge", "all"):
+            n_pledge = exporter.export_pledge(catalog_root)
+            print(f"Exported {n_pledge} pledge files")
+        if args.dataset in ("insider-disclosures", "all"):
+            n_insider = exporter.export_insider_disclosures(catalog_root)
+            print(f"Exported {n_insider} insider-disclosure files")
         return 0
     except Exception as exc:
         print(f"export failed: {exc}", file=sys.stderr)
@@ -180,6 +197,7 @@ def main(argv: list[str] | None = None) -> int:
         ipos.close()
         ipo_subscriptions.close()
         trading_holidays.close()
+        shareholding.close()
 
 
 if __name__ == "__main__":
