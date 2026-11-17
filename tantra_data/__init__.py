@@ -195,6 +195,10 @@ from tantra_data.service.profile_reader import LakehouseProfileReader
 from tantra_data.service.reference_exporter import InMemoryReferenceExporter
 from tantra_data.service.screener import VectorizedScreener
 from tantra_data.service.trading_holidays_reader import PythonTradingHolidayReader
+from tantra_data.store.mutual_funds import (
+    DuckDbMutualFundsStore,
+    MutualFundsStoreError,
+)
 from tantra_data.store.option_chain import DuckDbOptionChainStore
 from tantra_data.store.trading_holidays import DuckDbTradingHolidayStore
 
@@ -230,6 +234,7 @@ __all__ = [
     "DuckDbFundamentalRatiosStore",
     "DuckDbFundamentalsStore",
     "DuckDbMacroStore",
+    "DuckDbMutualFundsStore",
     "DuckDbOptionChainStore",
     "DuckDbProfileStore",
     "DuckDbTradingHolidayStore",
@@ -260,6 +265,7 @@ __all__ = [
     "MacroRow",
     "MacroSeriesRepository",
     "MarketReader",
+    "MutualFundsStoreError",
     "NewsArticle",
     "NewsReader",
     "NewsRepository",

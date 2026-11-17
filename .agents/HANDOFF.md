@@ -1,6 +1,18 @@
 # `tantra-data` — Inter-Agent Handoff
 
 ## Phase / Slice Status
+* **Gap 0023 closed (2026-11-17, T17.4)**: shipped `tantra_data/store/mutual_funds.py`
+  (`DuckDbMutualFundsStore` at `{root}/mutual_funds.duckdb`: `mf_schemes`, `mf_fund_stats`,
+  `mf_holdings`, `mf_nav`, `mf_returns`; exact `DECIMAL` columns). Lookthrough
+  (`mf_holdings.isin` ↔ `companies.isin_code`) → weighted portfolio ROCE / P/E / D/E, large/mid/small
+  market-cap breakdown (fixed `LARGE_CAP_MIN_CR`/`MID_CAP_MIN_CR` bands), `coverage_pct`; NAV/AUM/TER/
+  category/plan/option records; portfolio-overlap queries; disclosure-lag no-look-ahead window; honest
+  missing-data degradation (`MutualFundsStoreError` with the `[mutual-funds]` extra / `TANTRA_DATA_DIR`
+  provision hint — never fabricated). Connections open/close per op so the consumer's `read_only`
+  connection to the same file coexists. 17 tests in `tests/test_mutual_funds_store.py`; full `pytest`
+  green; ruff check + format clean; mypy: 21 pre-existing errors at HEAD, zero new. Consumer
+  un-skipped: `tantra-examples` `test_mutual_fund_screener_execution` passes against the provisioned
+  dummy `mutual_funds.duckdb` (dummy `build_mutual_funds` writes through the store).
 * **Gap 0016 option-chain live verification follow-on (T12.3, 2026-11-17)**: retried the live NSE
   feed — still NOT verified from the sandbox. Discovered (from the live page JS) that NSE removed
   the legacy `option-chain-indices` path (now HTTP 404 "Resource not found"); the current frontend
@@ -15,9 +27,6 @@
   NAV to 4dp (`Decimal("0.0001")`) — float binary artifacts previously carried 40+ scale digits
   into the parquet store's decimal128(38,10) columns and failed with "Rescaling Decimal value
   would cause data loss". Un-skipped `test_04_portfolio_optimization`.
-* **Gap 0023 filed (2026-11-16)**: `tantra_data.store.mutual_funds` (`DuckDbMutualFundsStore`)
-  was never shipped — the consumer (`tantra-examples` MF screener) only has its missing-extra
-  degradation path. Open gap `docs/gaps/0023-*.md`; closes when the store surface ships.
 * **ex 0003 loaders/quantity (2026-11-15)**: shipped the tantra-examples-gap-0003 loader
   surface: `loaders/amfi.py` (AMFI NAVAll.txt → `parse_navall`/`nav_bars`/`AmfiNavLoader`,
   wheel-optional lazy `Bar`/`InstrumentId`/`ParquetBarStore` imports with

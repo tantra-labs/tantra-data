@@ -30,7 +30,6 @@ overhaul.
 
 ## Open gaps
 
-| [0023](0023-mutual-funds-store-surface.md) | `tantra_data.store.mutual_funds` (DuckDbMutualFundsStore) never shipped — the mutual-fund screener's lookthrough store surface is absent; consumer (`screen_mutual_funds`) degrades to its missing-extra error | `tantra_data` (funds) | — |
 | [0024](0024-shareholding-sast-estimates.md) | Per-stock shareholding, pledge, SAST/insider disclosures and analyst estimates — no data source (blocks Shareholding/Forecaster/Red-flag screens) | `tantra_data` (reference) | — |
 | [0025](0025-legacy-catalog-layout-and-flat-parquet-fragmentation.md) | Legacy per-symbol `catalog/{TF}/{EX}/{SYM}` + flat `*.NSE.parquet` + unversioned bridge projections; no `instrument_uid` rename alias table or `objects/sha256` CAS manifest (ADR `0004`, plan `0009`) | `tantra_data` (lakehouse) | — |
 
@@ -38,6 +37,7 @@ overhaul.
 
 | # | Title | Area |
 |---|-------|------|
+| 0023 | `tantra_data.store.mutual_funds` (DuckDbMutualFundsStore) never shipped — the mutual-fund screener's lookthrough store surface is absent; consumer (`screen_mutual_funds`) degrades to its missing-extra error | `tantra_data` (funds) | Closed 2026-11-17 (T17.4): `store/mutual_funds.py` `DuckDbMutualFundsStore` (`{root}/mutual_funds.duckdb`: `mf_schemes`, `mf_fund_stats`, `mf_holdings`, `mf_nav`, `mf_returns`; exact `DECIMAL` money/percent columns), `mf_holdings.isin` ↔ `companies.isin_code` lookthrough (weighted portfolio ROCE / P/E / D/E, large/mid/small market-cap breakdown via fixed `LARGE_CAP_MIN_CR`/`MID_CAP_MIN_CR` bands, `coverage_pct`), NAV/AUM/TER/category/plan/option records, portfolio-overlap queries, disclosure-lag no-look-ahead window, honest missing-data degradation (`MutualFundsStoreError` with the `[mutual-funds]` extra / `TANTRA_DATA_DIR` provision hint — never fabricated). Consumer un-skipped: `test_mutual_fund_screener_execution` now passes against the provisioned synthetic `mutual_funds.duckdb` (dummy lakehouse `build_mutual_funds` writes through the store). Tests `tests/test_mutual_funds_store.py` (17) |
 | 0001 | Parquet catalog coverage verified for downstream consumers (`tantra-runtime`'s `/bars` endpoint, `tantra-ui-web`'s Risk tab/sparklines) | `tantra_data` (catalog) |
 | 0002 | Macro series ingestion stub (`PythonMacroReader` returns empty) | `tantra_data.service.macro_reader` | Closed in `c08710d` (macro series ingestion behind `PythonMacroReader`) |
 | 0003 | Filings ingestion & expanded economic series breadth | `tantra-data` (macro + filings) | Closed in `c08710d` (filings ingestion behind `FilingsReader`/`LakehouseFilingsReader`) |

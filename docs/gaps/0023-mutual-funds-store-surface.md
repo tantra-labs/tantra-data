@@ -1,6 +1,6 @@
 # 0023 — `tantra_data.store.mutual_funds` store surface not shipped
 
-**Status**: open
+**Status**: closed (gap 0023 — T17.4)
 
 **Area**: `tantra_data` (funds) — `tantra_data.store` package
 
