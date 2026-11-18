@@ -26,6 +26,7 @@ from tantra_data.domain.fundamentals import (
 )
 from tantra_data.domain.institutional_flow import InstitutionalFlow
 from tantra_data.domain.ipos import IpoIssue, IpoSubscription
+from tantra_data.domain.lakehouse import CommitRecord
 from tantra_data.domain.macro import MacroObservation
 from tantra_data.domain.mutual_funds import MutualFundMeta, MutualFundNav, MutualFundReturn
 from tantra_data.domain.news import NewsArticle
@@ -116,10 +117,22 @@ class FundamentalRatiosRepository(Protocol):
 
 @runtime_checkable
 class CatalogRepository(Protocol):
-    """Parquet catalog of OHLCV bars keyed by instrument."""
+    """Parquet catalog of OHLCV bars keyed by instrument (Lakehouse v3).
 
-    def write_bars(self, instrument: str, bars: pl.DataFrame) -> None:
-        """Persist bars, validating the canonical decimal schema."""
+    Plan 0009 Phase A / ADR 0004 extend the v1/v2 surface with a git-style
+    manifest and ref layer: ``write_bars``/``read_bars`` gain an ``as_of_ref``
+    keyword (default ``"main"`` = the live head) and ``resolve_ref`` /
+    ``commit`` / ``tag`` manage commit history, refs, and tags. Every new
+    keyword carries a default so pre-existing implementations and call-sites
+    keep working unchanged.
+    """
+
+    def write_bars(self, instrument: str, bars: pl.DataFrame, *, as_of_ref: str = "main") -> None:
+        """Persist bars, validating the canonical decimal schema.
+
+        ``as_of_ref`` names the ref the write is staged under (default
+        ``"main"``); implementations predating the v3 ref layer may ignore it.
+        """
         ...
 
     def read_bars(
@@ -128,8 +141,31 @@ class CatalogRepository(Protocol):
         start: date | None = None,
         end: date | None = None,
         interval: str = "1d",
+        *,
+        as_of_ref: str = "main",
     ) -> pl.DataFrame:
-        """Read bars sorted by timestamp, optionally filtered to a window."""
+        """Read bars sorted by timestamp, optionally filtered to a window.
+
+        ``as_of_ref`` selects the commit to read from (``"main"`` is the live
+        head); implementations predating the v3 ref layer may ignore it.
+        """
+        ...
+
+    def resolve_ref(self, ref: str) -> CommitRecord | None:
+        """Resolve ``ref`` (branch or tag name) to its pinned commit record,
+        or ``None`` when the ref is unknown."""
+        ...
+
+    def commit(self, summary: str, *, as_of_ist: date, schema_version: int) -> CommitRecord:
+        """Create a commit from the staged tree and return its record.
+
+        ``as_of_ist`` is the IST session boundary the commit is dated to and
+        ``schema_version`` the manifest/tree schema version being written.
+        """
+        ...
+
+    def tag(self, tag: str, ref: str = "main") -> None:
+        """Pin ``tag`` to the commit ``ref`` currently resolves to."""
         ...
 
 

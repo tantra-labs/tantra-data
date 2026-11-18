@@ -14,10 +14,18 @@ from tantra_data.domain.corporate_actions import (
 from tantra_data.domain.coverage import CoverageEntry, CoverageLedger
 from tantra_data.domain.filings import Filing, FilingType
 from tantra_data.domain.fundamentals import FundamentalRecord
+from tantra_data.domain.lakehouse import (
+    CatalogRef,
+    CommitRecord,
+    InstrumentAlias,
+    ManifestEntry,
+)
 from tantra_data.domain.macro import MacroObservation
 
 __all__ = [
     "Bonus",
+    "CatalogRef",
+    "CommitRecord",
     "CorporateAction",
     "CorporateActionRecord",
     "CorporateActionType",
@@ -27,7 +35,9 @@ __all__ = [
     "Filing",
     "FilingType",
     "FundamentalRecord",
+    "InstrumentAlias",
     "MacroObservation",
+    "ManifestEntry",
     "Rights",
     "Split",
     "from_record",
