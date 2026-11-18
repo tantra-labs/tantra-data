@@ -602,7 +602,7 @@ def _bar_entries(
         pl.col("ts").dt.month().alias("_month"),
     )
     if intraday:
-        buckets = sorted(zip(df["_year"].to_list(), df["_month"].to_list(), strict=True))
+        buckets = sorted(set(zip(df["_year"].to_list(), df["_month"].to_list(), strict=True)))
         for year, month in buckets:
             chunk = df.filter((pl.col("_year") == year) & (pl.col("_month") == month)).drop(
                 ["_year", "_month"]

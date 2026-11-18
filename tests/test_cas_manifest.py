@@ -385,6 +385,9 @@ def test_dual_read_manifest_bars_match_legacy(tmp_path: Path) -> None:
         Decimal("105.5000"),
     ]
     assert via_manifest["ts"].to_list() == [utc(2024, 1, 1), utc(2024, 1, 2)]
+    windowed = catalog.read_bars("NSE:RELIANCE-EQ", start=date(2024, 1, 2), end=date(2024, 1, 2))
+    assert windowed.height == 1
+    assert windowed["close"].to_list() == [Decimal("105.5000")]
     store.close()
 
 

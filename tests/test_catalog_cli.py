@@ -406,6 +406,25 @@ def test_migrate_v3_dry_run_then_real_with_parity(tmp_path: Path, capsys) -> Non
     assert cli.main(["verify", "--ref", "main", "--root", str(root)]) == 0
 
 
+def test_migrate_v3_intraday_dedups_year_month_buckets(tmp_path: Path) -> None:
+    root = tmp_path / "lake"
+    runtime_5m = root / "catalog" / "5M" / "NSE" / "INFY"
+    runtime_5m.mkdir(parents=True)
+    _legacy_bars(
+        [
+            (utc(2026, 9, 28, 4), "1000.0000", "1005.0000", "998.0000", "1002.0000", 10_000),
+            (utc(2026, 9, 28, 5), "1002.0000", "1008.0000", "1001.0000", "1006.0000", 12_000),
+        ]
+    ).write_parquet(runtime_5m / "2026.parquet")
+
+    assert cli.main(["migrate-v3", "--root", str(root)]) == 0
+    assert cli.main(["verify", "--ref", "main", "--root", str(root)]) == 0
+
+    bars = ParquetCatalog(root).read_bars("NSE:INFY-EQ", interval="5m")
+    assert bars.height == 2
+    assert bars["close"].to_list() == [Decimal("1002.0000"), Decimal("1006.0000")]
+
+
 def test_migrate_v3_empty_root_is_noop(tmp_path: Path, capsys) -> None:
     root = tmp_path / "lake"
     assert cli.main(["migrate-v3", "--root", str(root)]) == 0

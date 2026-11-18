@@ -20,7 +20,7 @@ touches the returned catalog bars (enforced by explicit schema casting on read a
 from __future__ import annotations
 
 import re
-from datetime import date, datetime, time
+from datetime import UTC, date, datetime, time
 from pathlib import Path
 
 import polars as pl
@@ -242,10 +242,11 @@ class ParquetCatalog:
         if schema["volume"] != pl.Int64:
             lf = lf.with_columns(pl.col("volume").cast(pl.Int64))
 
+        tz = UTC if getattr(ts_type, "time_zone", None) is not None else None
         if start is not None:
-            lf = lf.filter(pl.col("ts") >= datetime.combine(start, time.min))
+            lf = lf.filter(pl.col("ts") >= datetime.combine(start, time.min, tzinfo=tz))
         if end is not None:
-            lf = lf.filter(pl.col("ts") <= datetime.combine(end, time.max))
+            lf = lf.filter(pl.col("ts") <= datetime.combine(end, time.max, tzinfo=tz))
 
         df = lf.select(list(BAR_SCHEMA)).collect()
         if df.is_empty():
