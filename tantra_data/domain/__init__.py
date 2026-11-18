@@ -13,6 +13,7 @@ from tantra_data.domain.corporate_actions import (
 )
 from tantra_data.domain.coverage import CoverageEntry, CoverageLedger
 from tantra_data.domain.filings import Filing, FilingType
+from tantra_data.domain.fno_spreads import FuturesBasisSnapshot, OptionSpreadSnapshot
 from tantra_data.domain.fundamentals import FundamentalRecord
 from tantra_data.domain.lakehouse import (
     CatalogRef,
@@ -35,9 +36,11 @@ __all__ = [
     "Filing",
     "FilingType",
     "FundamentalRecord",
+    "FuturesBasisSnapshot",
     "InstrumentAlias",
     "MacroObservation",
     "ManifestEntry",
+    "OptionSpreadSnapshot",
     "Rights",
     "Split",
     "from_record",
