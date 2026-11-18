@@ -13,6 +13,7 @@ Per workspace rule `.agents/rules/gap-tracking.md`:
 | [0007](0007-instrument-master-index-membership.md) | Instrument Master, Classification & Point-in-Time Index Membership | `tantra_data` | Proposed — research `docs/research/trendlyne-screener-alerts-mcp.md`; root plan `docs/plans/0010` (F2); supersedes examples gaps 0004/0006 universe portions |
 | [0008](0008-screen-dsl-catalog-qvm.md) | Unified Screen DSL, Screen Catalog & QVM Score | `tantra_data` | Proposed — research `docs/research/trendlyne-screener-alerts-mcp.md`; root plan `docs/plans/0010` (F3–F5); depends on 0007 |
 | [0009](0009-unified-lakehouse-v3-and-cas-manifest.md) | Unified Lakehouse v3 Taxonomy, Symbology Aliases & Git-Style CAS Manifest | `tantra_data` | **Implemented 2026-11-17** — root ADR [`docs/design/0004`](../../../docs/design/0004-data-catalog-lakehouse-layout.md) + root plan [`0011`](../../../docs/plans/0011-unified-data-catalog-lakehouse-v3.md); Phases A–C (`ee802e9`/`398eeb7`/`d64c877`): CAS object store + `catalog.duckdb` manifest + `tantra-catalog` CLI; closes gap `0025` |
+| [0010](0010-experimental-analysis-multi-asset-and-events.md) | Multi-Asset Datasets (FX, Commodities, Continuous F&O) & Event Studies | `tantra_data` | Proposed (2026-11-18) — Track **T20.1**, root plan [`0014`](../../../docs/plans/0014-experimental-analysis-statistical-workbench.md); builds on `0009` (`domain=fx`/`domain=commodities`/ETF/`1d`+`5m` partitions) + Buyback/Earnings/F&O-Exclusion projections |
 
 ## Implemented Plans
 
