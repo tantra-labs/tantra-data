@@ -5,6 +5,14 @@ Bars are stored either as:
 2. Runtime layout: ``<root>/catalog/<TF>/<EXCHANGE>/<SYMBOL>/*.parquet`` or
    ``<root>/<TF>/<EXCHANGE>/<SYMBOL>/*.parquet``
 
+Since Lakehouse v3 (plan 0009 Phase B / ADR 0004) ``read_bars`` also
+dual-resolves through ``{root}/catalog.duckdb``: when the manifest exists and
+the instrument resolves through the symbology alias table, bars are read from
+the content-addressed objects referenced by ``resolve_partition(...)``
+(``objects/sha256/<ab>/<sha>.parquet``); otherwise the legacy v1/v2 Hive paths
+are used exactly as before. ``write_bars`` still writes the legacy layout —
+v3 writes arrive with the Phase C migration.
+
 Every financial column returned is an exact fixed-point decimal; no ``float`` ever
 touches the returned catalog bars (enforced by explicit schema casting on read and write).
 """
@@ -19,6 +27,8 @@ import polars as pl
 import pyarrow as pa
 import pyarrow.parquet as pq
 
+from tantra_data.adapters.cas_store import read_cas_object
+from tantra_data.adapters.manifest_store import ManifestStore
 from tantra_data.ports.repositories import BAR_SCHEMA
 
 _PRICE_FIELDS = ("open", "high", "low", "close")
@@ -116,7 +126,8 @@ class ParquetCatalog:
         self.root = Path(root)
         self.root.mkdir(parents=True, exist_ok=True)
 
-    def write_bars(self, instrument: str, bars: pl.DataFrame) -> None:
+    def write_bars(self, instrument: str, bars: pl.DataFrame, *, as_of_ref: str = "main") -> None:
+        del as_of_ref  # v3 writes land with the Phase C migration; legacy layout for now.
         df = self._normalize(bars)
         df = df.with_columns(pl.col("ts").dt.year().alias("_year"))
         instrument_dir = self.root / _encode(instrument)
@@ -133,53 +144,113 @@ class ParquetCatalog:
         start: date | None = None,
         end: date | None = None,
         interval: str = "1d",
+        *,
+        as_of_ref: str = "main",
     ) -> pl.DataFrame:
+        v3 = self._read_bars_v3(instrument, start, end, interval, as_of_ref)
+        if v3 is not None:
+            return v3
+
         files = _find_parquet_files(self.root, instrument, interval=interval)
         if not files:
             return pl.DataFrame(schema=BAR_SCHEMA)
 
         try:
             lf = pl.scan_parquet([str(f) for f in files])
-            schema = lf.collect_schema()
-            missing = [c for c in BAR_SCHEMA if c not in schema.names()]
-            if missing:
-                return pl.DataFrame(schema=BAR_SCHEMA)
-
-            # Normalize timestamp to microsecond resolution
-            ts_type = schema["ts"]
-            if ts_type == pl.Int64:
-                lf = lf.with_columns(
-                    pl.when(pl.col("ts") > 1_000_000_000_000_000_000)
-                    .then(pl.col("ts").cast(pl.Datetime("ns")).dt.cast_time_unit("us"))
-                    .when(pl.col("ts") > 1_000_000_000_000_000)
-                    .then(pl.col("ts").cast(pl.Datetime("us")))
-                    .otherwise(pl.col("ts") * 1_000_000)
-                    .cast(pl.Datetime("us"))
-                    .alias("ts")
-                )
-            elif ts_type.is_temporal():
-                lf = lf.with_columns(pl.col("ts").dt.cast_time_unit("us"))
-
-            # Normalize price fields to canonical DECIMAL(18, 4)
-            for field in _PRICE_FIELDS:
-                if schema[field] != _DECIMAL:
-                    lf = lf.with_columns(pl.col(field).round(4).cast(pl.String).cast(_DECIMAL))
-
-            # Normalize volume to Int64
-            if schema["volume"] != pl.Int64:
-                lf = lf.with_columns(pl.col("volume").cast(pl.Int64))
-
-            if start is not None:
-                lf = lf.filter(pl.col("ts") >= datetime.combine(start, time.min))
-            if end is not None:
-                lf = lf.filter(pl.col("ts") <= datetime.combine(end, time.max))
-
-            df = lf.select(list(BAR_SCHEMA)).collect()
-            if df.is_empty():
-                return df
-            return df.sort("ts")
+            return self._finalize(lf, start, end)
         except Exception:
             return pl.DataFrame(schema=BAR_SCHEMA)
+
+    def _read_bars_v3(
+        self,
+        instrument: str,
+        start: date | None,
+        end: date | None,
+        interval: str,
+        as_of_ref: str,
+    ) -> pl.DataFrame | None:
+        """Read bars through the ``catalog.duckdb`` manifest; ``None`` = fall back."""
+        if not (self.root / "catalog.duckdb").exists():
+            return None
+        exchange, raw_sym, clean_sym = _parse_instrument(instrument)
+        try:
+            store = ManifestStore(self.root)
+        except Exception:
+            return None
+        try:
+            uid = store.resolve_alias(exchange, raw_sym)
+            if uid is None:
+                uid = store.resolve_alias(exchange, clean_sym)
+            if uid is None:
+                return None
+            entries = store.resolve_partition(
+                "market",
+                "bars",
+                exchange=exchange,
+                timeframe=interval,
+                ref=as_of_ref,
+            )
+            if not entries:
+                return None
+            frames: list[pl.DataFrame] = []
+            for entry in entries:
+                try:
+                    frame = read_cas_object(self.root, entry.object_sha)
+                except FileNotFoundError:
+                    continue
+                if "instrument_uid" not in frame.columns:
+                    return None
+                frames.append(frame)
+            if not frames:
+                return None
+            lf = pl.concat(frames).lazy().filter(pl.col("instrument_uid") == uid)
+            return self._finalize(lf, start, end)
+        except Exception:
+            return None
+        finally:
+            store.close()
+
+    @staticmethod
+    def _finalize(lf: pl.LazyFrame, start: date | None, end: date | None) -> pl.DataFrame:
+        """Normalize a lazy frame to canonical BAR_SCHEMA and window it."""
+        schema = lf.collect_schema()
+        missing = [c for c in BAR_SCHEMA if c not in schema.names()]
+        if missing:
+            return pl.DataFrame(schema=BAR_SCHEMA)
+
+        # Normalize timestamp to microsecond resolution
+        ts_type = schema["ts"]
+        if ts_type == pl.Int64:
+            lf = lf.with_columns(
+                pl.when(pl.col("ts") > 1_000_000_000_000_000_000)
+                .then(pl.col("ts").cast(pl.Datetime("ns")).dt.cast_time_unit("us"))
+                .when(pl.col("ts") > 1_000_000_000_000_000)
+                .then(pl.col("ts").cast(pl.Datetime("us")))
+                .otherwise(pl.col("ts") * 1_000_000)
+                .cast(pl.Datetime("us"))
+                .alias("ts")
+            )
+        elif ts_type.is_temporal():
+            lf = lf.with_columns(pl.col("ts").dt.cast_time_unit("us"))
+
+        # Normalize price fields to canonical DECIMAL(18, 4)
+        for field in _PRICE_FIELDS:
+            if schema[field] != _DECIMAL:
+                lf = lf.with_columns(pl.col(field).round(4).cast(pl.String).cast(_DECIMAL))
+
+        # Normalize volume to Int64
+        if schema["volume"] != pl.Int64:
+            lf = lf.with_columns(pl.col("volume").cast(pl.Int64))
+
+        if start is not None:
+            lf = lf.filter(pl.col("ts") >= datetime.combine(start, time.min))
+        if end is not None:
+            lf = lf.filter(pl.col("ts") <= datetime.combine(end, time.max))
+
+        df = lf.select(list(BAR_SCHEMA)).collect()
+        if df.is_empty():
+            return df
+        return df.sort("ts")
 
     def _normalize(self, bars: pl.DataFrame) -> pl.DataFrame:
         missing = [c for c in BAR_SCHEMA if c not in bars.columns]

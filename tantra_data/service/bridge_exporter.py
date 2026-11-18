@@ -31,7 +31,7 @@ the projection.
 
 from __future__ import annotations
 
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, time
 from decimal import Decimal
 from pathlib import Path
 from typing import Protocol
@@ -39,6 +39,8 @@ from typing import Protocol
 import pyarrow as pa
 import pyarrow.parquet as pq
 
+from tantra_data.adapters.cas_store import write_cas_object
+from tantra_data.adapters.manifest_store import SCHEMA_VERSION, ManifestStore
 from tantra_data.domain.block_deals import BlockDeal
 from tantra_data.domain.calendar import CalendarEvent
 from tantra_data.domain.corporate_actions import (
@@ -56,6 +58,7 @@ from tantra_data.domain.fundamentals import (
 )
 from tantra_data.domain.institutional_flow import InstitutionalFlow
 from tantra_data.domain.ipos import IpoIssue, IpoSubscription
+from tantra_data.domain.lakehouse import ManifestEntry
 from tantra_data.domain.mutual_funds import MutualFundMeta, MutualFundNav, MutualFundReturn
 from tantra_data.domain.news import NewsArticle
 from tantra_data.domain.option_chain import (
@@ -67,6 +70,25 @@ from tantra_data.domain.shareholding import InsiderDisclosure, PledgeRecord, Sha
 from tantra_data.domain.trading_holidays import TradingHoliday
 
 __all__ = ["LakehouseBridgeExporter"]
+
+#: v3 domain + primary date column per flat projection dataset (plan 0009 Phase B).
+#: ``fundamentals`` and ``disclosures`` mirror ADR 0004 §2.2.
+_V3_PROJECTIONS: dict[str, tuple[str, str]] = {
+    "filings": ("fundamentals", "filing_date"),
+    "corporate_actions": ("fundamentals", "ex_date"),
+    "block_deals": ("disclosures", "trade_date"),
+    "news": ("disclosures", "published_date"),
+    "institutional_flows": ("disclosures", "trade_date"),
+    "delivery": ("disclosures", "trade_date"),
+    "economic_calendar": ("fundamentals", "scheduled_date"),
+    "fundamentals": ("fundamentals", "filing_date"),
+    "fundamental_ratios": ("fundamentals", "as_of_date"),
+    "mutual_funds": ("fundamentals", "as_of_date"),
+    "mf_nav": ("fundamentals", "nav_date"),
+    "mf_returns": ("fundamentals", "as_of_date"),
+    "ipos": ("disclosures", "as_of_date"),
+    "ipo_subscriptions": ("disclosures", "as_of_date"),
+}
 
 
 class FilingsRepository(Protocol):
@@ -346,6 +368,7 @@ class LakehouseBridgeExporter:
         shareholding: ShareholdingRepository | None = None,
         pledge: PledgeRepository | None = None,
         insider: InsiderDisclosureRepository | None = None,
+        manifest: ManifestStore | None = None,
     ) -> None:
         self._filings = filings
         self._corporate_actions = corporate_actions
@@ -366,6 +389,82 @@ class LakehouseBridgeExporter:
         self._shareholding = shareholding
         self._pledge = pledge
         self._insider = insider
+        self._manifest = manifest
+
+    def _project_v3(self, root: Path, dataset: str) -> None:
+        """Mirror a flat projection into its v3 CAS partition (manifest mode).
+
+        When a ``ManifestStore`` is attached, the per-date files written by an
+        ``export_*`` are also projected under ``{root}/{domain}/{dataset}/``
+        (v3 partition, ADR 0004 §2.2), merged into one content-addressed
+        object, and recorded as a single ``ManifestEntry`` committed to the
+        catalog. Without a manifest this is a no-op so the legacy flat layout
+        stays byte-identical.
+        """
+        if self._manifest is None:
+            return
+        mapping = _V3_PROJECTIONS.get(dataset)
+        if mapping is None:
+            return
+        domain, sort_col = mapping
+        flat_dir = root / dataset
+        files = sorted(flat_dir.glob("*.parquet")) if flat_dir.exists() else []
+        if not files:
+            return
+
+        v3_dir = root / domain / dataset
+        v3_dir.mkdir(parents=True, exist_ok=True)
+        tables: list[pa.Table] = []
+        for path in files:
+            table = pq.read_table(path)
+            pq.write_table(table, v3_dir / path.name, version="2.6")
+            tables.append(table)
+        combined = pa.concat_tables(tables)
+
+        min_ts, max_ts, as_of_ist = self._date_bounds(combined, sort_col)
+        sha = write_cas_object(combined, sort_key=sort_col, root=self._manifest.root)
+        entry = ManifestEntry(
+            domain=domain,
+            dataset=dataset,
+            exchange=None,
+            asset_class=None,
+            timeframe=None,
+            time_bucket=f"year={as_of_ist.year}",
+            object_sha=sha,
+            min_ts=min_ts,
+            max_ts=max_ts,
+            row_count=combined.num_rows,
+            sort_key=sort_col,
+        )
+        parent = self._manifest.resolve_ref("main")
+        self._manifest.commit(
+            summary=f"bridge export {domain}/{dataset}",
+            as_of_ist=as_of_ist,
+            schema_version=SCHEMA_VERSION,
+            entries=[entry],
+            parent=parent,
+        )
+
+    @staticmethod
+    def _date_bounds(table: pa.Table, column: str) -> tuple[datetime, datetime, date]:
+        """Compute (min_ts, max_ts, as_of_ist) from a projection date column.
+
+        ``date32`` cells become UTC midnights so the manifest bounds are
+        timezone-aware; the latest date is the commit's ``as_of_ist``.
+        """
+        values = table.column(column).to_pylist()
+        dates: list[date] = []
+        for value in values:
+            if isinstance(value, datetime):
+                dates.append(value.date())
+            elif isinstance(value, date):
+                dates.append(value)
+            else:
+                raise TypeError(f"column {column!r} is not a date/timestamp column: {value!r}")
+        lo, hi = min(dates), max(dates)
+        min_ts = datetime.combine(lo, time.min, tzinfo=UTC)
+        max_ts = datetime.combine(hi, time.max, tzinfo=UTC)
+        return min_ts, max_ts, hi
 
     def export_filings(self, root: str | Path) -> int:
         """Write ``{root}/catalog/filings/<filing_date>.parquet`` per filing date.
@@ -394,6 +493,7 @@ class LakehouseBridgeExporter:
             path.parent.mkdir(parents=True, exist_ok=True)
             pq.write_table(table, path, version="2.6")
             count += 1
+        self._project_v3(root, "filings")
         return count
 
     def export_corporate_actions(self, root: str | Path) -> int:
@@ -431,6 +531,7 @@ class LakehouseBridgeExporter:
             path.parent.mkdir(parents=True, exist_ok=True)
             pq.write_table(table, path, version="2.6")
             count += 1
+        self._project_v3(root, "corporate_actions")
         return count
 
     def export_block_deals(self, root: str | Path) -> int:
@@ -466,6 +567,7 @@ class LakehouseBridgeExporter:
             path.parent.mkdir(parents=True, exist_ok=True)
             pq.write_table(table, path, version="2.6")
             count += 1
+        self._project_v3(root, "block_deals")
         return count
 
     def export_news(self, root: str | Path) -> int:
@@ -506,6 +608,7 @@ class LakehouseBridgeExporter:
             path.parent.mkdir(parents=True, exist_ok=True)
             pq.write_table(table, path, version="2.6")
             count += 1
+        self._project_v3(root, "news")
         return count
 
     def export_institutional_flows(self, root: str | Path) -> int:
@@ -540,6 +643,7 @@ class LakehouseBridgeExporter:
             path.parent.mkdir(parents=True, exist_ok=True)
             pq.write_table(table, path, version="2.6")
             count += 1
+        self._project_v3(root, "institutional_flows")
         return count
 
     def export_delivery(self, root: str | Path) -> int:
@@ -577,6 +681,7 @@ class LakehouseBridgeExporter:
             path.parent.mkdir(parents=True, exist_ok=True)
             pq.write_table(table, path, version="2.6")
             count += 1
+        self._project_v3(root, "delivery")
         return count
 
     def export_economic_calendar(self, root: str | Path) -> int:
@@ -619,6 +724,7 @@ class LakehouseBridgeExporter:
             path.parent.mkdir(parents=True, exist_ok=True)
             pq.write_table(table, path, version="2.6")
             count += 1
+        self._project_v3(root, "economic_calendar")
         return count
 
     def export_trading_holidays(self, root: str | Path) -> int:
@@ -868,6 +974,7 @@ class LakehouseBridgeExporter:
             path.parent.mkdir(parents=True, exist_ok=True)
             pq.write_table(table, path, version="2.6")
             count += 1
+        self._project_v3(root, "fundamentals")
         return count
 
     def export_fundamental_ratios(self, root: str | Path) -> int:
@@ -926,6 +1033,7 @@ class LakehouseBridgeExporter:
             path.parent.mkdir(parents=True, exist_ok=True)
             pq.write_table(table, path, version="2.6")
             count += 1
+        self._project_v3(root, "fundamental_ratios")
         return count
 
     def export_mutual_funds(self, root: str | Path) -> int:
@@ -965,6 +1073,7 @@ class LakehouseBridgeExporter:
             path.parent.mkdir(parents=True, exist_ok=True)
             pq.write_table(table, path, version="2.6")
             count += 1
+        self._project_v3(root, "mutual_funds")
         return count
 
     def export_mf_nav(self, root: str | Path) -> int:
@@ -1006,6 +1115,7 @@ class LakehouseBridgeExporter:
             path.parent.mkdir(parents=True, exist_ok=True)
             pq.write_table(table, path, version="2.6")
             count += 1
+        self._project_v3(root, "mf_nav")
         return count
 
     def export_mf_returns(self, root: str | Path) -> int:
@@ -1044,6 +1154,7 @@ class LakehouseBridgeExporter:
             path.parent.mkdir(parents=True, exist_ok=True)
             pq.write_table(table, path, version="2.6")
             count += 1
+        self._project_v3(root, "mf_returns")
         return count
 
     def export_ipos(self, root: str | Path) -> int:
@@ -1100,6 +1211,7 @@ class LakehouseBridgeExporter:
             path.parent.mkdir(parents=True, exist_ok=True)
             pq.write_table(table, path, version="2.6")
             count += 1
+        self._project_v3(root, "ipos")
         return count
 
     def export_ipo_subscriptions(self, root: str | Path) -> int:
@@ -1154,6 +1266,7 @@ class LakehouseBridgeExporter:
             path.parent.mkdir(parents=True, exist_ok=True)
             pq.write_table(table, path, version="2.6")
             count += 1
+        self._project_v3(root, "ipo_subscriptions")
         return count
 
     def export_option_chain(self, root: str | Path) -> int:
