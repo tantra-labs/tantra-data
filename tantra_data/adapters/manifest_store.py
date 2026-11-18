@@ -2,13 +2,13 @@
 
 Implements ADR 0004 §2.1 / plan 0009 Phase B: ``{root}/catalog.duckdb``
 holds four parameterized tables — ``commits``, ``manifest_entries``, ``refs``,
-and ``instrument_aliases`` — mirroring the immutable ``commits/<sha>.json``
-and ``refs/{heads,tags}/*`` files on disk.
+and ``instrument_aliases`` — mirroring the immutable ``commits/<sha>.json``,
+``trees/<tree_hash>.json``, and ``refs/{heads,tags}/*`` files on disk.
 
 Commit protocol:
 1. Validate the incoming entries (Zero-Floats, monotonic ``(min_ts, max_ts)``,
    schema version) *before* touching any state.
-2. Write the immutable ``commits/<sha>.json``.
+2. Write the immutable ``trees/<tree_hash>.json`` and ``commits/<sha>.json``.
 3. Insert the ``manifest_entries`` rows.
 4. Atomically fast-forward ``refs/heads/main`` (or
    ``refs/heads/staging/<pipeline>`` then ``main``).
@@ -118,6 +118,16 @@ def _commit_payload(
     }
 
 
+def _tree_payload(entries: list[ManifestEntry]) -> list[dict[str, object]]:
+    return [
+        {
+            k: (v.isoformat() if isinstance(v, (date, datetime)) else v)
+            for k, v in asdict(entry).items()
+        }
+        for entry in sorted(entries, key=lambda e: (e.min_ts, e.max_ts))
+    ]
+
+
 def _validate_entries(entries: list[ManifestEntry], schema_version: int) -> None:
     """Zero-Floats + monotonic ``(min_ts, max_ts)`` + schema-version gate."""
     if schema_version != SCHEMA_VERSION:
@@ -145,9 +155,10 @@ class ManifestStore:
 
     Ref pointers live both as git-style files (``{root}/refs/...``) and as
     rows in the ``refs`` table; commits live both as immutable JSON files
-    (``{root}/commits/<sha>.json``) and as rows in the ``commits`` table.
-    The files are authoritative for ref resolution so external tools (the
-    Rust consumers) can read the same contract.
+    (``{root}/commits/<sha>.json`` and ``{root}/trees/<tree_hash>.json``)
+    and as rows in the ``commits`` table. The files are authoritative for
+    ref and tree resolution so external tools (the Rust consumers) can read
+    the exact same contract without needing DuckDB.
     """
 
     def __init__(self, root: str | Path) -> None:
@@ -183,16 +194,9 @@ class ManifestStore:
         """Create an immutable commit, then atomically fast-forward main."""
         _validate_entries(entries, schema_version)
 
-        tree_payload = [
-            {
-                k: (v.isoformat() if isinstance(v, (date, datetime)) else v)
-                for k, v in asdict(entry).items()
-            }
-            for entry in sorted(entries, key=lambda e: (e.min_ts, e.max_ts))
-        ]
-        tree_hash = hashlib.sha256(
-            json.dumps(tree_payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
-        ).hexdigest()
+        tree_payload = _tree_payload(entries)
+        tree_canonical = json.dumps(tree_payload, sort_keys=True, separators=(",", ":"))
+        tree_hash = hashlib.sha256(tree_canonical.encode("utf-8")).hexdigest()
 
         created_at_utc = datetime.now(UTC)
         parent_sha = parent.commit_sha if parent is not None else None
@@ -217,7 +221,15 @@ class ManifestStore:
             summary=summary,
         )
 
-        # 1. Immutable commit JSON (atomic tmp -> rename).
+        # 1. Immutable tree JSON + commit JSON (atomic tmp -> rename).
+        tree_file = self.root / "trees" / f"{tree_hash}.json"
+        tree_existed = tree_file.exists()
+        if not tree_existed:
+            tree_file.parent.mkdir(parents=True, exist_ok=True)
+            tmp_tree = tree_file.with_name(f".{uuid.uuid4().hex}.json")
+            tmp_tree.write_text(tree_canonical + "\n")
+            os.replace(tmp_tree, tree_file)
+
         commit_file = self.root / "commits" / f"{commit_sha}.json"
         commit_file.parent.mkdir(parents=True, exist_ok=True)
         tmp_json = commit_file.with_name(f".{uuid.uuid4().hex}.json")
@@ -261,6 +273,8 @@ class ManifestStore:
         except Exception:
             self._con.execute("ROLLBACK")
             commit_file.unlink(missing_ok=True)
+            if not tree_existed:
+                tree_file.unlink(missing_ok=True)
             raise
 
         # 3. Atomically fast-forward staging/<pipeline> (optional) then main.

@@ -9,6 +9,8 @@ continuity across the ``ZOMATO`` -> ``ETERNAL`` rename; and the dual-read
 
 from __future__ import annotations
 
+import hashlib
+import json
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from pathlib import Path
@@ -172,8 +174,17 @@ def test_commit_fast_forwards_main_and_records_entries(tmp_path: Path) -> None:
     assert record.parent_sha is None
     assert store.resolve_ref("main") == record
     assert store.resolve_ref("refs/heads/main") == record
-    # immutable commit file on disk
+    # immutable commit & tree files on disk matching tree_hash
     assert (tmp_path / "commits" / f"{record.commit_sha}.json").exists()
+    tree_path = tmp_path / "trees" / f"{record.tree_hash}.json"
+    assert tree_path.exists()
+    tree_data = json.loads(tree_path.read_text())
+    assert len(tree_data) == 1
+    assert tree_data[0]["object_sha"] == entry.object_sha
+    computed_tree_hash = hashlib.sha256(
+        json.dumps(tree_data, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    assert computed_tree_hash == record.tree_hash
 
     parts = store.resolve_partition("market", "bars", exchange="NSE", timeframe="1d")
     assert [p.object_sha for p in parts] == [entry.object_sha]
