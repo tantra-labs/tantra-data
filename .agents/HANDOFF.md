@@ -1,6 +1,17 @@
 # `tantra-data` — Inter-Agent Handoff
 
 ## Phase / Slice Status
+* **Gap 0025 / plan 0009 closed (2026-11-17, ADR 0004 Lakehouse v3 Phases A–C)**: the
+  storage-taxonomy redesign shipped — Phase A (`ee802e9`) `domain/lakehouse.py` types
+  (`CatalogRef`/`CommitRecord`/`ManifestEntry`/`InstrumentAlias`) + `CatalogRepository` ref surface
+  (`resolve_ref`/`commit`/`tag`, `as_of_ref="main"`); Phase B (`398eeb7`) CAS writer
+  (`objects/sha256/<ab>/<sha>.parquet`, Zstd, 100K row-groups, `(instrument_uid, ts)` sort,
+  Decimal128, atomic promote) + `catalog.duckdb` manifest (`commits`/`manifest_entries`/`refs`/
+  `instrument_aliases`, staging→main fast-forward, tags, `reference/aliases` rename resolution) +
+  dual-read `ParquetCatalog`/`LakehouseBridgeExporter`; Phase C (`d64c877`) `tantra-catalog` CLI
+  (`status`/`log`/`tag`/`verify`/`compact`/`gc`/`materialize-views`/`migrate-v3`, verified 100% bar +
+  Decimal parity). 359 tests green (5 env skips). Legacy layouts kept — Rust-side deprecation is
+  `tantra-market` 0008 + `tantra-runtime` 0011.
 * **Gap 0024 closed (2026-11-17, T17.5)**: shipped shareholding / promoter-pledge / SEBI-PIT
   insider-disclosure ingestion — three **verified-live** sources (recorded before any provider code):
   BSE `Corp_Shareholding_ng/w` + iXBRL (HTTP 200, 107 quarterly filings / 36 summary categories for
