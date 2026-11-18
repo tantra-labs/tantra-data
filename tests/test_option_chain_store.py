@@ -56,8 +56,9 @@ def test_upsert_snapshot_is_idempotent(tmp_path) -> None:
         store.close()
     connection = duckdb.connect(str(tmp_path / "option_chain.duckdb"))
     try:
-        count = connection.execute("SELECT COUNT(*) FROM option_chain_snapshots").fetchone()[0]
-        assert count == 2
+        row = connection.execute("SELECT COUNT(*) FROM option_chain_snapshots").fetchone()
+        assert row is not None
+        assert row[0] == 2
     finally:
         connection.close()
 

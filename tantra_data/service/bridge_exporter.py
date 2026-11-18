@@ -34,7 +34,7 @@ from __future__ import annotations
 from datetime import UTC, date, datetime, time
 from decimal import Decimal
 from pathlib import Path
-from typing import Protocol
+from typing import Protocol, TypedDict
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -331,6 +331,30 @@ class InsiderDisclosureRepository(Protocol):
     def all_disclosures(self) -> list[InsiderDisclosure]: ...
 
     def close(self) -> None: ...
+
+
+class _GexSeriesRow(TypedDict):
+    as_of: datetime
+    expiry: date
+    strike: Decimal
+    gamma: Decimal
+    open_interest: Decimal
+    gex: Decimal
+    net: Decimal
+    flip: Decimal | None
+
+
+class _ChainAsOfRow(TypedDict):
+    as_of: datetime
+    underlying: str
+    expiry: date
+    strike: Decimal
+    option_type: str
+    open_interest: Decimal
+    oi_change: Decimal
+    implied_volatility: Decimal
+    delta: Decimal
+    gamma: Decimal
 
 
 def _as_decimal128(value: Decimal | None) -> Decimal | None:
@@ -1326,7 +1350,7 @@ class LakehouseBridgeExporter:
 
         count = 0
         for expiry in sorted(by_expiry):
-            rows: list[dict[str, object]] = []
+            rows: list[_GexSeriesRow] = []
             for as_of in sorted(by_expiry[expiry]):
                 snapshot = OptionChainSnapshot(
                     as_of=as_of,
@@ -1448,7 +1472,7 @@ class LakehouseBridgeExporter:
         read at that timestamp would return, with no look-ahead.
         """
         latest: dict[tuple[Decimal, str], StrikePositioning] = {}
-        rows: list[dict[str, object]] = []
+        rows: list[_ChainAsOfRow] = []
         for as_of in sorted(by_as_of):
             for positioning in by_as_of[as_of]:
                 latest[(positioning.strike, positioning.option_type)] = positioning

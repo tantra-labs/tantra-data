@@ -172,7 +172,8 @@ def _normalize_ts(df: pl.DataFrame, column: str = "ts") -> pl.DataFrame:
         df = df.with_columns(pl.col(column).dt.cast_time_unit("us"))
     else:
         raise ValueError(f"{column} column has unsupported dtype {dtype}")
-    if df[column].dtype.time_zone is None:
+    normalized_dtype = df[column].dtype
+    if isinstance(normalized_dtype, pl.Datetime) and normalized_dtype.time_zone is None:
         df = df.with_columns(pl.col(column).dt.replace_time_zone("UTC"))
     return df
 
@@ -215,8 +216,8 @@ def _sort_key_for(frame: pl.DataFrame) -> list[str]:
 def _ts_bounds(frame: pl.DataFrame, column: str = "ts") -> tuple[datetime, datetime]:
     lo = frame[column].min()
     hi = frame[column].max()
-    if lo is None or hi is None:
-        raise ValueError(f"cannot compute {column} bounds on an empty frame")
+    if not isinstance(lo, datetime) or not isinstance(hi, datetime):
+        raise ValueError(f"cannot compute {column} bounds on an empty or non-datetime frame")
     return _to_utc(lo), _to_utc(hi)
 
 

@@ -172,9 +172,10 @@ def test_duckdb_fno_spread_store_idempotent_and_point_in_time(tmp_path) -> None:
 
     conn = duckdb.connect(str(tmp_path / "fno_spreads.duckdb"))
     try:
-        fut_count = conn.execute("SELECT COUNT(*) FROM futures_basis_snapshots").fetchone()[0]
-        opt_count = conn.execute("SELECT COUNT(*) FROM option_spread_snapshots").fetchone()[0]
-        assert fut_count == 2
-        assert opt_count == 3
+        fut_row = conn.execute("SELECT COUNT(*) FROM futures_basis_snapshots").fetchone()
+        opt_row = conn.execute("SELECT COUNT(*) FROM option_spread_snapshots").fetchone()
+        assert fut_row is not None and opt_row is not None
+        assert fut_row[0] == 2
+        assert opt_row[0] == 3
     finally:
         conn.close()

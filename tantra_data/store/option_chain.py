@@ -49,6 +49,20 @@ _COLUMNS = (
 )
 
 
+def _as_decimal(value: object) -> Decimal:
+    if isinstance(value, Decimal):
+        return value
+    if isinstance(value, (int, str)):
+        return Decimal(value)
+    raise TypeError(f"Expected Decimal-compatible value, got {type(value).__name__}")
+
+
+def _as_str(value: object) -> str:
+    if isinstance(value, str):
+        return value
+    return str(value)
+
+
 class DuckDbOptionChainStore:
     """DuckDB point-in-time store for intraday option-chain snapshots.
 
@@ -218,11 +232,11 @@ class DuckDbOptionChainStore:
     @staticmethod
     def _to_positioning(row: tuple[object, ...]) -> StrikePositioning:
         return StrikePositioning(
-            strike=row[3],
-            option_type=row[4],
-            open_interest=row[5],
-            oi_change=row[6],
-            implied_volatility=row[7],
-            delta=row[8],
-            gamma=row[9],
+            strike=_as_decimal(row[3]),
+            option_type=_as_str(row[4]),
+            open_interest=_as_decimal(row[5]),
+            oi_change=_as_decimal(row[6]),
+            implied_volatility=_as_decimal(row[7]),
+            delta=_as_decimal(row[8]),
+            gamma=_as_decimal(row[9]),
         )

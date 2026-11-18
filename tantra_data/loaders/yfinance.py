@@ -72,6 +72,8 @@ class YFinanceProvider:
             return []
         bars: list = []
         for ts, row in data.iterrows():
+            if not isinstance(ts, dt.datetime):
+                raise TypeError(f"Expected datetime index from yfinance, got {type(ts).__name__}")
             bars.append(
                 Bar(
                     instrument_id=inst,

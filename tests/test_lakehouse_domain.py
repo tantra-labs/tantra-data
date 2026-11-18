@@ -38,35 +38,41 @@ def _commit(
     )
 
 
-def _entry(**overrides: object) -> ManifestEntry:
-    base: dict[str, object] = {
-        "domain": "market",
-        "dataset": "bars",
-        "exchange": "NSE",
-        "asset_class": "EQ",
-        "timeframe": "1d",
-        "time_bucket": "year=2024",
-        "object_sha": "ab/" + "b" * 62,
-        "min_ts": utc(2024, 1, 1),
-        "max_ts": utc(2024, 12, 31),
-        "row_count": 250_000,
-        "sort_key": "(instrument_uid, ts)",
-    }
-    base.update(overrides)
-    return ManifestEntry(**base)
+def _entry(
+    *,
+    min_ts: datetime | None = None,
+    max_ts: datetime | None = None,
+    row_count: int = 250_000,
+) -> ManifestEntry:
+    return ManifestEntry(
+        domain="market",
+        dataset="bars",
+        exchange="NSE",
+        asset_class="EQ",
+        timeframe="1d",
+        time_bucket="year=2024",
+        object_sha="ab/" + "b" * 62,
+        min_ts=min_ts if min_ts is not None else utc(2024, 1, 1),
+        max_ts=max_ts if max_ts is not None else utc(2024, 12, 31),
+        row_count=row_count,
+        sort_key="(instrument_uid, ts)",
+    )
 
 
-def _alias(**overrides: object) -> InstrumentAlias:
-    base: dict[str, object] = {
-        "exchange": "NSE",
-        "symbol": "ZOMATO",
-        "series": "EQ",
-        "valid_from": date(2021, 7, 23),
-        "valid_to": date(2024, 9, 13),
-        "instrument_uid": "INE999Z01019",
-    }
-    base.update(overrides)
-    return InstrumentAlias(**base)
+def _alias(
+    *,
+    symbol: str = "ZOMATO",
+    valid_from: date | None = date(2021, 7, 23),
+    valid_to: date | None = date(2024, 9, 13),
+) -> InstrumentAlias:
+    return InstrumentAlias(
+        exchange="NSE",
+        symbol=symbol,
+        series="EQ",
+        valid_from=valid_from,
+        valid_to=valid_to,
+        instrument_uid="INE999Z01019",
+    )
 
 
 def _resolve_uid(
@@ -337,4 +343,4 @@ def test_catalog_repository_as_of_ref_keyword_defaults() -> None:
 
 
 def test_catalog_repository_manifest_surface_present() -> None:
-    assert {"resolve_ref", "commit", "tag"}.issubset(CatalogRepository.__protocol_attrs__)
+    assert {"resolve_ref", "commit", "tag"}.issubset(vars(CatalogRepository))
