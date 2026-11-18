@@ -1,6 +1,6 @@
 # 0009 — Unified Lakehouse v3 Taxonomy, Symbology Aliases & Git-Style CAS Manifest
 
-**Status**: Proposed — 2026-11-17
+**Status**: **Implemented 2026-11-17** (Phases A–C) — `ee802e9` (Phase A domain types + `CatalogRepository` ref surface), `398eeb7` (Phase B CAS object store + `catalog.duckdb` manifest, dual-read), `d64c877` (Phase C `tantra-catalog` CLI: status/log/tag/verify/compact/gc/materialize-views/migrate-v3). 359 tests green (5 env skips). Gap `0025` closed. Cross-repo Rust consumers remain tracked by `tantra-market` gap `0008` + `tantra-runtime` gap `0011` (root plan `0011` Phase 3).
 
 ## 0. Executive Summary & Objective
 

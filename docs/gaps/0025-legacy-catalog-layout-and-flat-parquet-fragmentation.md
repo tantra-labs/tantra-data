@@ -1,6 +1,9 @@
 # 0025 — Legacy Per-Symbol Catalog & Flat Parquet Layout Fragmentation
 
-**Status**: open
+**Status**: closed — 2026-11-17 (plan `0009` Phases A–C: `ee802e9`, `398eeb7`, `d64c877`)
+
+Implemented via [`tantra-data` plan 0009](../plans/0009-unified-lakehouse-v3-and-cas-manifest.md):
+v3 domain types + `CatalogRepository` ref surface (Phase A), CAS `objects/sha256/` writer + `catalog.duckdb` manifest (`commits`/`manifest_entries`/`refs`/`instrument_aliases`) with atomic staging→main fast-forward + `reference/aliases` resolution and dual-read `ParquetCatalog`/`LakehouseBridgeExporter` (Phase B), and the `tantra-catalog` CLI (`status`/`log`/`tag`/`verify`/`compact`/`gc`/`materialize-views`/`migrate-v3`) with verified 100% bar + Decimal parity for `*.NSE.parquet` and `catalog/{TF}/{EX}/{SYM}` legacy inputs (Phase C). Legacy layouts are **not deleted** — the cross-repo Rust deprecation is tracked by `tantra-market` gap `0008` + `tantra-runtime` gap `0011`.
 
 ## What's stubbed or hardcoded
 
