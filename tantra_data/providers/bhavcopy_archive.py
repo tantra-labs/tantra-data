@@ -144,9 +144,16 @@ def _int(raw: str) -> int | None:
 
 
 def _date(raw: str, fmt: str) -> date:
+    text = raw.strip()
     try:
-        return datetime.strptime(raw.strip(), fmt).date()
+        return datetime.strptime(text, fmt).date()
     except ValueError as exc:
+        # NSE occasionally publishes a 2-digit year (e.g. '13-Jul-20' on 2020-07-13).
+        if fmt == "%d-%b-%Y":
+            try:
+                return datetime.strptime(text, "%d-%b-%y").date()
+            except ValueError:
+                pass
         raise BhavcopyArchiveError(f"unparseable date: {raw!r}") from exc
 
 

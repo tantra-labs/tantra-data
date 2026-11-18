@@ -393,3 +393,9 @@ def test_writer_keeps_higher_precedence_source_across_runs(tmp_path: Path) -> No
     newer = _bars([("A", date(2022, 12, 30), "4")])
     write_daily_bars(tmp_path, newer)  # equal precedence: newest wins
     assert read_daily_bars(tmp_path)["close"].to_list() == [Decimal("4.0000")]
+
+
+def test_legacy_two_digit_year_date() -> None:
+    # NSE's 2020-07-13 legacy bhavcopy stamps TIMESTAMP as '13-Jul-20'.
+    _, df = parse_archive_bhavcopy(LEGACY.replace("03-JAN-2022", "13-Jul-20"))
+    assert df["trade_date"].to_list() == [date(2020, 7, 13)]
