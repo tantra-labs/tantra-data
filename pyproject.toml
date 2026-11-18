@@ -27,6 +27,7 @@ dev = [
 ]
 
 [project.scripts]
+tantra-catalog = "tantra_data.cli.catalog:main"
 tantra-coverage = "tantra_data.cli.coverage:main"
 
 [tool.setuptools.packages.find]
