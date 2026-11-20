@@ -16,3 +16,7 @@ Implement a lakehouse v3 Parquet `BarSource` in `tantra_data` (resolving `ref` v
 Decimal prices (from Decimal128, never float), closed bars only, `ref` pinned to a data commit for
 reproducibility, bounded row count, no look-ahead. Wire it into `tantra-library-mcp` as an alternative to
 `CsvBarSource` and add tests against a CAS fixture.
+
+## Progress
+
+Provider side implemented: `tantra_data.service.library_bars.LakehouseBarReader` (2026-11-20). Remaining: wire into `tantra-library-mcp` (tantra-strategies).
