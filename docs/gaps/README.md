@@ -32,6 +32,7 @@ overhaul.
 
 | # | Title | Area | Note |
 |---|-------|------|------|
+| [0026](0026-strategies-lakehouse-bar-source.md) | Lakehouse v3 Parquet `BarSource` for `tantra_library` (CSV stand-in today) | `tantra_data` (lakehouse) | Root plan 0016; consumer `tantra-strategies` `bar_source.py` |
 
 ## Closed gaps
 
