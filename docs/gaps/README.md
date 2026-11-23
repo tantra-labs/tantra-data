@@ -32,6 +32,14 @@ overhaul.
 
 | # | Title | Area | Note |
 |---|-------|------|------|
+| [0027](0027-bridge-export-drops-datasets-from-main.md) | Bridge export commits a one-entry tree: `main` loses every other dataset | `tantra_data` (lakehouse/ingest) | open — critical; root gap 0018; with 0029 becomes data loss; plan [0011](../plans/0011-design-review-2026-11.md) |
+| [0028](0028-ref-cas-and-catalog-locking.md) | No compare-and-swap or cross-process lock on refs / `catalog.duckdb` | `tantra_data` (lakehouse/ingest) | open — high; root gap 0018; plan [0011](../plans/0011-design-review-2026-11.md) |
+| [0029](0029-gc-reachability-and-grace.md) | `gc` considers only ref tips, no grace period, races in-flight writes | `tantra_data` (lakehouse/ingest) | open — high; root gap 0018; plan [0011](../plans/0011-design-review-2026-11.md) |
+| [0030](0030-ingestion-robustness.md) | Ingestion HTTP layer: no retry/backoff/rate-limit, non-atomic cache writes, copy-pasted NSE bootstraps | `tantra_data` (lakehouse/ingest) | open — high; plan [0011](../plans/0011-design-review-2026-11.md) |
+| [0031](0031-provenance-scheduling-observability.md) | No provenance/lineage, ingest orchestration, alerting or health surface | `tantra_data` (lakehouse/ingest) | open — high; deployment; plan [0011](../plans/0011-design-review-2026-11.md) |
+| [0032](0032-cas-read-verification.md) | CAS reads do not verify content hash; commit tree can reference missing objects | `tantra_data` (lakehouse/ingest) | open — medium; root gap 0018; plan [0011](../plans/0011-design-review-2026-11.md) |
+| [0033](0033-as-of-ist-clock.md) | `date.today()` stamps `as_of_ist` from host-local time | `tantra_data` (lakehouse/ingest) | open — medium; root gap 0020; plan [0011](../plans/0011-design-review-2026-11.md) |
+| [0034](0034-nav-and-catalog-float-leaks.md) | Float leaks at AMFI NAV loader and Parquet normalisation | `tantra_data` (lakehouse/ingest) | open — medium; plan [0011](../plans/0011-design-review-2026-11.md) |
 
 ## Closed gaps
 
