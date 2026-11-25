@@ -1,11 +1,11 @@
 # 0011 — tantra-data design review (2026-11): lakehouse commit/ref/GC integrity, ingestion robustness & provenance
 
-**Status**: Proposed (2026-11-23)
+**Status**: In Progress (2026-11-23; **Phase A item 1 / Gap 0027 closed 2026-11-25**)
 **Scope**: `tantra-data` · **Umbrella**: root `docs/plans/0021-workspace-design-review-2026-11.md`
 
 ## 0. Executive Summary & Objective
 
-The review found that the v3 manifest is not yet a safe snapshot store. `ManifestStore.commit` writes only the entries it is given, so one bridge export hides every other dataset from `main` (gap 0027, critical); refs have no compare-and-swap or lock (0028); and `gc` walks only ref tips with no grace period (0029), which turns 0027 into real data loss. Beyond the commit path, ingestion has no shared HTTP layer, retry or provenance (0030, 0031), CAS reads are unverified (0032), `as_of_ist` uses host-local time (0033), and the AMFI NAV path uses floats (0034).
+The review found that the v3 manifest was not yet a safe snapshot store. Gap `0027` (closed 2026-11-25: snapshot-merge commits, `entries_replace_only`, `tantra-catalog repair`, and [the snapshot contract](../design/lakehouse-v3-snapshot-contract.md)) fixed single-dataset overwrite on `main`; refs still have no compare-and-swap or lock (0028); and `gc` still walks only ref tips with no grace period (0029). Beyond the commit path, ingestion has no shared HTTP layer, retry or provenance (0030, 0031), CAS reads are unverified (0032), `as_of_ist` uses host-local time (0033), and the AMFI NAV path uses floats (0034).
 
 This plan fixes commit/ref/gc integrity first, then hardens ingestion and provenance, then prepares deployment (object store, backups, scheduling).
 
@@ -15,7 +15,7 @@ Non-goals: the dynamic-SQL allow-list is already owned by root `docs/plans/0019-
 
 | Gap | Title | Kind | Severity |
 |---|---|---|---|
-| [0027](../gaps/0027-bridge-export-drops-datasets-from-main.md) | Bridge export commits a one-entry tree: `main` loses every other dataset | design-flaw | critical |
+| [0027](../gaps/README.md#closed-gaps) *(closed 2026-11-25)* | Bridge export commits a one-entry tree: `main` loses every other dataset | design-flaw | critical |
 | [0028](../gaps/0028-ref-cas-and-catalog-locking.md) | No compare-and-swap or cross-process lock on refs / `catalog.duckdb` | design-flaw | high |
 | [0029](../gaps/0029-gc-reachability-and-grace.md) | `gc` considers only ref tips, no grace period, races in-flight writes | design-flaw | high |
 | [0030](../gaps/0030-ingestion-robustness.md) | Ingestion HTTP layer: no retry/backoff, non-atomic cache, 8 NSE bootstraps | design-flaw | high |
@@ -35,7 +35,7 @@ Plan-only items (no standalone gap doc):
 
 ### Phase A — Stop the data loss (do first)
 
-1. **Gap 0027** (first, before anything else): snapshot-merge `ManifestStore.commit`; `entries_replace_only` switch for `compact`; repair command for already-damaged roots; regression test. Until this lands, no `tantra-catalog gc` run on exported data roots.
+1. ~~**Gap 0027** (closed 2026-11-25)~~: snapshot-merge `ManifestStore.commit`, `entries_replace_only` switch for `compact`/`repair`, `tantra-catalog repair`, regression tests, and [snapshot contract](../design/lakehouse-v3-snapshot-contract.md). Note: keep `tantra-catalog gc` gated on automated jobs until **Gap 0029** lands.
 2. **Gap 0029**: parent-chain/retention reachability, 24h grace, dry-run default.
 3. **Gap 0028**: `expect_head` / `RefConflict`, `{root}/.lock`, fsync ordering, immutable tags. 0029 reuses the lock.
 4. **Gap 0032**: existence check in `commit`, verified reads, fsync before promote.
@@ -63,14 +63,14 @@ Plan-only items (no standalone gap doc):
 
 - Root plan 0019: P1.6 (SQL allow-list), P2.3 (ports), P5.2 (reader wiring) are not duplicated here; R1 extends P1.6, gap 0034 touches P5.2.
 - Root plan 0022 (deployment architecture): R3, gap 0031. Root plan 0021: umbrella.
-- Root gaps 0018 (manifest/ref contract; gaps 0027-0029, 0032), 0020 (time; gap 0033), 0019 and 0015 (R4).
-- `tantra-market/docs/gaps/0014-lakehouse-writer-ref-cas.md`: the Rust writer must follow the same snapshot and lock protocol (0027, 0028).
+- Root gaps 0018 (manifest/ref contract; closed 0027, open 0028–0029, 0032), 0020 (time; gap 0033), 0019 and 0015 (R4).
+- `tantra-market/docs/gaps/0014-lakehouse-writer-ref-cas.md`: the Rust writer must follow the same snapshot and lock protocol (closed `0027`, open `0028`).
 - `tantra-runtime/docs/plans/0012-api-design-review-2026-11.md` R6: scheduling side of gap 0031.
 - Earlier plans 0007 (instrument master) and 0008 (screen DSL) overlap R4.
 
 ## 4. Exit Criteria
 
-1. Two sequential exports of different datasets both resolve at `main`; a repair command exists for damaged roots (0027).
+1. ~~Two sequential exports of different datasets both resolve at `main`; a repair command exists for damaged roots (0027)~~ — **Done 2026-11-25**.
 2. Two concurrent writers produce exactly one `RefConflict`; a crash-injection test passes (0028).
 3. `gc` preserves history-pinned commits and fresh orphans, and deletes nothing by default (0029).
 4. Every provider uses `HttpTransport`; retry, truncated-download and licensing-note tests exist (0030).

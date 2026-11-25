@@ -14,6 +14,7 @@ from tantra_data.adapters.duckdb_store import (
 )
 from tantra_data.adapters.filings_store import DuckDbFilingsStore
 from tantra_data.adapters.institutional_flow_store import DuckDbInstitutionalFlowStore
+from tantra_data.adapters.manifest_store import ManifestStore
 from tantra_data.adapters.news_store import DuckDbNewsStore
 from tantra_data.cli.export_bridge import main
 from tantra_data.domain.block_deals import BlockDeal
@@ -825,3 +826,50 @@ def test_main_cli_exports_all_datasets(tmp_path):
     rc = main(["--dataset", "institutional-flows", "--db", db, "--catalog", catalog])
     assert rc == 0
     assert (tmp_path / "catalog" / "institutional_flows" / "2026-05-05.parquet").exists()
+
+
+def test_sequential_bridge_exports_preserve_both_datasets_on_main(tmp_path):
+    """Regression test for gap 0027: sequential exports must keep all datasets on main."""
+    filings = DuckDbFilingsStore(":memory:")
+    filings.upsert(
+        Filing(
+            instrument="NSE:RELIANCE-EQ",
+            filing_date=date(2026, 5, 1),
+            filing_type=FilingType.CORPORATE_ACTION,
+            title="Board meeting",
+            source_url="https://example.com/board",
+        )
+    )
+    delivery = DuckDbDeliveryStore(":memory:")
+    delivery.upsert(
+        DeliveryRecord(
+            trade_date=date(2026, 5, 2),
+            instrument="NSE:RELIANCE-EQ",
+            traded_quantity=100000,
+            deliverable_quantity=65000,
+            delivery_pct=Decimal("65.00"),
+        )
+    )
+    actions = DuckDbCorporateActionsStore(":memory:")
+    manifest = ManifestStore(tmp_path / "catalog")
+    exporter = LakehouseBridgeExporter(
+        filings,
+        actions,
+        delivery=delivery,
+        manifest=manifest,
+    )
+    try:
+        assert exporter.export_filings(tmp_path / "catalog") == 1
+        assert exporter.export_delivery(tmp_path / "catalog") == 1
+        head_filings = manifest.resolve_partition("fundamentals", "filings")
+        head_delivery = manifest.resolve_partition("disclosures", "delivery")
+        assert len(head_filings) == 1
+        assert len(head_delivery) == 1
+        head = manifest.resolve_ref("main")
+        assert head is not None
+        assert len(manifest.entries_for_commit(head.commit_sha)) == 2
+    finally:
+        manifest.close()
+        actions.close()
+        delivery.close()
+        filings.close()

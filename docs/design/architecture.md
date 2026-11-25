@@ -102,6 +102,7 @@ financial path.
 
 ## 6. Related
 
+* [Lakehouse v3 Snapshot Commit Contract](lakehouse-v3-snapshot-contract.md) — snapshot merge, deterministic tree serialization, and `repair` semantics shared with Rust writers.
 * `docs/design/code-migration-map.md` — historical `honba-data → tantra-data` migration.
 * `docs/gaps/README.md` / `docs/plans/README.md` — open ingestion/bridge work and plans.
 * `README.md` — package overview, quick start, and development commands.

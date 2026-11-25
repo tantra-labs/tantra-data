@@ -13,7 +13,7 @@
 
 ## Why
 
-Today `gc` can delete a fresh object mid-ingest. After [0027](0027-bridge-export-drops-datasets-from-main.md) is fixed, `gc` would still delete objects reachable only from a historical or sha-pinned commit, breaking reproducible backtests. Together with 0027 as it stands, objects dropped from `main` are deleted outright: real data loss. There is also no retention policy for `objects/` + `commits/`, which SEBI-style audit retention needs.
+Today `gc` can delete a fresh object mid-ingest. Even with snapshot-merge commits (closed gap [0027](README.md#closed-gaps)) landed, `gc` still deletes objects reachable only from a historical or sha-pinned commit, breaking reproducible backtests. There is also no retention policy for `objects/` + `commits/`, which SEBI-style audit retention needs.
 
 ## How to close it
 
@@ -27,5 +27,5 @@ Today `gc` can delete a fresh object mid-ingest. After [0027](0027-bridge-export
 
 ## Related
 
-- [0027](0027-bridge-export-drops-datasets-from-main.md) (critical; fix first), [0028](0028-ref-cas-and-catalog-locking.md), [0032](0032-cas-read-verification.md).
+- Closed gap [0027](README.md#closed-gaps), [0028](0028-ref-cas-and-catalog-locking.md), [0032](0032-cas-read-verification.md).
 - Root gap 0018; closed gaps 0025 and 0026.

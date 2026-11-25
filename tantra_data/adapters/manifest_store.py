@@ -1,6 +1,7 @@
 """DuckDB-backed manifest and ref manager for the v3 content-addressed lakehouse.
 
-Implements ADR 0004 §2.1 / plan 0009 Phase B: ``{root}/catalog.duckdb``
+Implements ADR 0004 §2.1 / plan 0009 Phase B and the v3 snapshot contract
+(``docs/design/lakehouse-v3-snapshot-contract.md``): ``{root}/catalog.duckdb``
 holds four parameterized tables — ``commits``, ``manifest_entries``, ``refs``,
 and ``instrument_aliases`` — mirroring the immutable ``commits/<sha>.json``,
 ``trees/<tree_hash>.json``, and ``refs/{heads,tags}/*`` files on disk.
@@ -8,9 +9,12 @@ and ``instrument_aliases`` — mirroring the immutable ``commits/<sha>.json``,
 Commit protocol:
 1. Validate the incoming entries (Zero-Floats, monotonic ``(min_ts, max_ts)``,
    schema version) *before* touching any state.
-2. Write the immutable ``trees/<tree_hash>.json`` and ``commits/<sha>.json``.
-3. Insert the ``manifest_entries`` rows.
-4. Atomically fast-forward ``refs/heads/main`` (or
+2. Unless ``entries_replace_only=True``, merge the ``parent`` commit's entries
+   keyed by ``(domain, dataset, exchange, asset_class, timeframe, time_bucket)``
+   so new entries replace matching keys while unrelated datasets stay intact.
+3. Write the immutable ``trees/<tree_hash>.json`` and ``commits/<sha>.json``.
+4. Insert the ``manifest_entries`` rows for the full snapshot.
+5. Atomically fast-forward ``refs/heads/main`` (or
    ``refs/heads/staging/<pipeline>`` then ``main``).
 
 Any validation failure raises and leaves refs and commit history untouched —
@@ -35,6 +39,8 @@ from tantra_data.domain.lakehouse import CommitRecord, InstrumentAlias, Manifest
 
 #: Manifest/tree schema version this store reads and writes (v3 lakehouse).
 SCHEMA_VERSION = 3
+
+EntryKey = tuple[str, str, str | None, str | None, str | None, str]
 
 _COMMITS_DDL = """
 CREATE TABLE IF NOT EXISTS commits (
@@ -99,6 +105,35 @@ def _to_naive_utc(value: datetime) -> datetime:
     return _utc(value).replace(tzinfo=None)
 
 
+def _entry_key(entry: ManifestEntry) -> EntryKey:
+    """Logical partition coordinate identifying one entry slot in a snapshot."""
+    return (
+        entry.domain,
+        entry.dataset,
+        entry.exchange,
+        entry.asset_class,
+        entry.timeframe,
+        entry.time_bucket,
+    )
+
+
+def _entry_sort_key(
+    entry: ManifestEntry,
+) -> tuple[datetime, datetime, str, str, str, str, str, str, str]:
+    """Deterministic ordering for snapshot trees and DuckDB rows."""
+    return (
+        entry.min_ts,
+        entry.max_ts,
+        entry.domain,
+        entry.dataset,
+        entry.exchange or "",
+        entry.asset_class or "",
+        entry.timeframe or "",
+        entry.time_bucket,
+        entry.object_sha,
+    )
+
+
 def _commit_payload(
     *,
     parent_sha: str | None,
@@ -124,7 +159,7 @@ def _tree_payload(entries: list[ManifestEntry]) -> list[dict[str, object]]:
             k: (v.isoformat() if isinstance(v, (date, datetime)) else v)
             for k, v in asdict(entry).items()
         }
-        for entry in sorted(entries, key=lambda e: (e.min_ts, e.max_ts))
+        for entry in sorted(entries, key=_entry_sort_key)
     ]
 
 
@@ -181,6 +216,56 @@ class ManifestStore:
             return None
         return self._load_commit(sha)
 
+    def entries_for_commit(self, commit_sha: str) -> list[ManifestEntry]:
+        """Return all manifest entries in the snapshot for ``commit_sha``.
+
+        Reads the immutable ``trees/<tree_hash>.json`` file when present and
+        falls back to DuckDB ``manifest_entries`` rows otherwise.
+        """
+        commit = self._load_commit(commit_sha)
+        if commit is not None:
+            tree_file = self.root / "trees" / f"{commit.tree_hash}.json"
+            if tree_file.exists():
+                payload = json.loads(tree_file.read_text())
+                return [
+                    ManifestEntry(
+                        domain=item["domain"],
+                        dataset=item["dataset"],
+                        exchange=item.get("exchange"),
+                        asset_class=item.get("asset_class"),
+                        timeframe=item.get("timeframe"),
+                        time_bucket=item["time_bucket"],
+                        object_sha=item["object_sha"],
+                        min_ts=_utc(datetime.fromisoformat(item["min_ts"])),
+                        max_ts=_utc(datetime.fromisoformat(item["max_ts"])),
+                        row_count=int(item["row_count"]),
+                        sort_key=item["sort_key"],
+                    )
+                    for item in payload
+                ]
+        rows = self._con.execute(
+            "SELECT domain, dataset, exchange, asset_class, timeframe, time_bucket, "
+            "object_sha, min_ts, max_ts, row_count, sort_key "
+            "FROM manifest_entries WHERE commit_sha = ? ORDER BY min_ts, max_ts",
+            [commit_sha],
+        ).fetchall()
+        return [
+            ManifestEntry(
+                domain=r[0],
+                dataset=r[1],
+                exchange=r[2],
+                asset_class=r[3],
+                timeframe=r[4],
+                time_bucket=r[5],
+                object_sha=r[6],
+                min_ts=_utc(r[7]),
+                max_ts=_utc(r[8]),
+                row_count=r[9],
+                sort_key=r[10],
+            )
+            for r in rows
+        ]
+
     def commit(
         self,
         summary: str,
@@ -190,11 +275,22 @@ class ManifestStore:
         entries: list[ManifestEntry],
         parent: CommitRecord | None = None,
         pipeline: str | None = None,
+        entries_replace_only: bool = False,
     ) -> CommitRecord:
-        """Create an immutable commit, then atomically fast-forward main."""
+        """Create an immutable snapshot commit, then atomically fast-forward main."""
         _validate_entries(entries, schema_version)
 
-        tree_payload = _tree_payload(entries)
+        if parent is not None and not entries_replace_only:
+            merged: dict[EntryKey, ManifestEntry] = {
+                _entry_key(item): item for item in self.entries_for_commit(parent.commit_sha)
+            }
+            for item in entries:
+                merged[_entry_key(item)] = item
+            effective_entries = sorted(merged.values(), key=_entry_sort_key)
+        else:
+            effective_entries = sorted(entries, key=_entry_sort_key)
+
+        tree_payload = _tree_payload(effective_entries)
         tree_canonical = json.dumps(tree_payload, sort_keys=True, separators=(",", ":"))
         tree_hash = hashlib.sha256(tree_canonical.encode("utf-8")).hexdigest()
 
@@ -251,7 +347,7 @@ class ManifestStore:
                     summary,
                 ],
             )
-            for entry in entries:
+            for entry in effective_entries:
                 self._con.execute(
                     "INSERT INTO manifest_entries VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     [
@@ -322,7 +418,7 @@ class ManifestStore:
                     return content
             row = self._con.execute("SELECT commit_sha FROM refs WHERE name = ?", [name]).fetchone()
             if row:
-                return row[0]
+                return str(row[0])
         return None
 
     def _load_commit(self, sha: str) -> CommitRecord | None:

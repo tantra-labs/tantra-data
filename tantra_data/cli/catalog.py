@@ -16,6 +16,9 @@ Phase C on top of the Phase A/B CAS + manifest engine:
 - ``migrate-v3`` — one-shot migration of the legacy ``*.NSE.parquet``,
   ``catalog/{TF}/{EXCHANGE}/{SYMBOL}/{YYYY}.parquet`` and flat bridge
   projections with a strict bar-count + OHLCV ``Decimal``-sum parity gate.
+- ``repair`` — non-destructively rebuild a full snapshot head on ``main`` by
+  walking ``parent_sha`` history oldest-to-newest (latest entry per logical
+  key wins).
 
 Zero-floats: migration normalizes legacy float prices to exact
 ``Decimal128(18, 4)`` before they ever touch the CAS store.
@@ -43,7 +46,13 @@ from tantra_data.adapters.cas_store import (
     read_cas_object,
     write_cas_object,
 )
-from tantra_data.adapters.manifest_store import SCHEMA_VERSION, ManifestStore
+from tantra_data.adapters.manifest_store import (
+    SCHEMA_VERSION,
+    EntryKey,
+    ManifestStore,
+    _entry_key,
+    _entry_sort_key,
+)
 from tantra_data.domain.lakehouse import CommitRecord, InstrumentAlias, ManifestEntry
 from tantra_data.service.bridge_exporter import _V3_PROJECTIONS
 
@@ -367,7 +376,7 @@ def _cmd_verify(args: argparse.Namespace) -> int:
 
 
 # ---------------------------------------------------------------------------
-# compact / gc / materialize-views
+# compact / gc / materialize-views / repair
 # ---------------------------------------------------------------------------
 
 
@@ -465,6 +474,7 @@ def _cmd_compact(args: argparse.Namespace) -> int:
             schema_version=SCHEMA_VERSION,
             entries=entries,
             parent=parent,
+            entries_replace_only=True,
         )
         print(
             f"compact: merged {merged_count} flush segment(s) into {len(entries)} "
@@ -528,6 +538,43 @@ def _cmd_materialize_views(args: argparse.Namespace) -> int:
     note = f" ({symlinked} symlink fallback(s))" if symlinked else ""
     print(f"materialize-views: {created} view(s) under {root}/views{note}")
     return 0
+
+
+def _cmd_repair(args: argparse.Namespace) -> int:
+    """Rebuild a full snapshot head from history without rewriting commits."""
+    root = Path(args.root)
+    store = ManifestStore(root)
+    try:
+        head = store.resolve_ref("main")
+        if head is None:
+            print("repair: refs/heads/main has no commits")
+            return 0
+        history = _history(root, store)
+        merged: dict[EntryKey, ManifestEntry] = {}
+        for record in reversed(history):
+            for entry in store.entries_for_commit(record.commit_sha):
+                merged[_entry_key(entry)] = entry
+        rebuilt = sorted(merged.values(), key=_entry_sort_key)
+        current = {_entry_key(entry): entry for entry in store.entries_for_commit(head.commit_sha)}
+        if current == merged:
+            print(f"repair: main is already up to date ({len(rebuilt)} entry/entries)")
+            return 0
+        as_of_ist = max((entry.max_ts.date() for entry in rebuilt), default=head.as_of_ist)
+        committed = store.commit(
+            f"repair: rebuilt full snapshot ({len(rebuilt)} entry/entries) from history",
+            as_of_ist=as_of_ist,
+            schema_version=SCHEMA_VERSION,
+            entries=rebuilt,
+            parent=head,
+            entries_replace_only=True,
+        )
+        print(
+            f"repair: committed {committed.commit_sha} with {len(rebuilt)} "
+            "entry/entries on refs/heads/main"
+        )
+        return 0
+    finally:
+        store.close()
 
 
 # ---------------------------------------------------------------------------
@@ -868,6 +915,12 @@ def build_parser() -> argparse.ArgumentParser:
     migrate.add_argument("--dry-run", action="store_true", help="report only, do not write")
     _add_root(migrate)
 
+    repair = sub.add_parser(
+        "repair",
+        help="rebuild a full snapshot head from main history (non-destructive)",
+    )
+    _add_root(repair)
+
     return parser
 
 
@@ -880,6 +933,7 @@ _COMMANDS = {
     "gc": _cmd_gc,
     "materialize-views": _cmd_materialize_views,
     "migrate-v3": _cmd_migrate_v3,
+    "repair": _cmd_repair,
 }
 
 

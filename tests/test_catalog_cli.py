@@ -430,3 +430,84 @@ def test_migrate_v3_empty_root_is_noop(tmp_path: Path, capsys) -> None:
     assert cli.main(["migrate-v3", "--root", str(root)]) == 0
     assert "no legacy inputs" in capsys.readouterr().out
     assert not (root / "catalog.duckdb").exists()
+
+
+# ---------------------------------------------------------------------------
+# repair (gap 0027 recovery for single-entry-delta historical roots)
+# ---------------------------------------------------------------------------
+
+
+def test_repair_rebuilds_merged_head_preserving_history_latest_wins(tmp_path: Path, capsys) -> None:
+    root = tmp_path / "lake"
+    store = ManifestStore(root)
+    c1 = store.commit(
+        "old-filings",
+        as_of_ist=date(2026, 1, 1),
+        schema_version=SCHEMA_VERSION,
+        entries=[
+            make_entry(
+                domain="fundamentals",
+                dataset="filings",
+                exchange=None,
+                asset_class=None,
+                timeframe=None,
+                time_bucket="year=2026",
+                object_sha="1" * 64,
+            )
+        ],
+    )
+    c2 = store.commit(
+        "legacy-broken-news",
+        as_of_ist=date(2026, 1, 2),
+        schema_version=SCHEMA_VERSION,
+        entries=[
+            make_entry(
+                domain="disclosures",
+                dataset="news",
+                exchange=None,
+                asset_class=None,
+                timeframe=None,
+                time_bucket="year=2026",
+                object_sha="2" * 64,
+            )
+        ],
+        parent=c1,
+        entries_replace_only=True,
+    )
+    c3 = store.commit(
+        "legacy-broken-filings-update",
+        as_of_ist=date(2026, 1, 3),
+        schema_version=SCHEMA_VERSION,
+        entries=[
+            make_entry(
+                domain="fundamentals",
+                dataset="filings",
+                exchange=None,
+                asset_class=None,
+                timeframe=None,
+                time_bucket="year=2026",
+                object_sha="3" * 64,
+            )
+        ],
+        parent=c2,
+        entries_replace_only=True,
+    )
+    store.close()
+
+    assert cli.main(["repair", "--root", str(root)]) == 0
+    out = capsys.readouterr().out
+    assert "repair:" in out
+
+    store = ManifestStore(root)
+    head = store.resolve_ref("main")
+    assert head is not None
+    # History is never rewritten: new commit parents c3.
+    assert head.parent_sha == c3.commit_sha
+    # Both news (from c2) and updated filings (from c3) resolve; stale filings v1 does not.
+    assert [e.object_sha for e in store.resolve_partition("disclosures", "news")] == ["2" * 64]
+    assert [e.object_sha for e in store.resolve_partition("fundamentals", "filings")] == ["3" * 64]
+    store.close()
+
+    # Running repair again is idempotent (no-op).
+    assert cli.main(["repair", "--root", str(root)]) == 0
+    assert "up to date" in capsys.readouterr().out

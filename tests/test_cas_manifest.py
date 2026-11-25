@@ -441,3 +441,244 @@ def test_dual_read_falls_back_when_manifest_has_no_bars(tmp_path: Path) -> None:
     assert bars.height == 2
     assert bars["close"].to_list() == [Decimal("100.0000"), Decimal("101.0000")]
     store.close()
+
+
+# ---------------------------------------------------------------------------
+# Snapshot commit semantics & key-based merge (gap 0027 closure)
+# ---------------------------------------------------------------------------
+
+
+def test_sequential_dataset_commits_preserve_other_datasets_on_main(tmp_path: Path) -> None:
+    store = ManifestStore(tmp_path)
+    delivery = make_entry(
+        domain="disclosures",
+        dataset="delivery",
+        exchange=None,
+        asset_class=None,
+        timeframe=None,
+        time_bucket="year=2026",
+        object_sha="1" * 64,
+        min_ts=utc(2026, 1, 1),
+        max_ts=utc(2026, 1, 10),
+    )
+    fundamentals = make_entry(
+        domain="fundamentals",
+        dataset="filings",
+        exchange=None,
+        asset_class=None,
+        timeframe=None,
+        time_bucket="year=2026",
+        object_sha="2" * 64,
+        min_ts=utc(2026, 1, 2),
+        max_ts=utc(2026, 1, 15),
+    )
+    c1 = store.commit(
+        "export delivery",
+        as_of_ist=date(2026, 1, 10),
+        schema_version=SCHEMA_VERSION,
+        entries=[delivery],
+    )
+    c2 = store.commit(
+        "export filings",
+        as_of_ist=date(2026, 1, 15),
+        schema_version=SCHEMA_VERSION,
+        entries=[fundamentals],
+        parent=c1,
+    )
+    assert [e.object_sha for e in store.resolve_partition("disclosures", "delivery")] == ["1" * 64]
+    assert [e.object_sha for e in store.resolve_partition("fundamentals", "filings")] == ["2" * 64]
+
+    tree_data = json.loads((tmp_path / "trees" / f"{c2.tree_hash}.json").read_text())
+    assert len(tree_data) == 2
+    assert {row["dataset"] for row in tree_data} == {"delivery", "filings"}
+    store.close()
+
+
+def test_commit_entries_replace_only_writes_replacement_tree(tmp_path: Path) -> None:
+    store = ManifestStore(tmp_path)
+    first = store.commit(
+        "first",
+        as_of_ist=date(2026, 1, 1),
+        schema_version=SCHEMA_VERSION,
+        entries=[
+            make_entry(
+                domain="disclosures",
+                dataset="delivery",
+                exchange=None,
+                asset_class=None,
+                timeframe=None,
+                object_sha="a" * 64,
+            )
+        ],
+    )
+    second = store.commit(
+        "replace all",
+        as_of_ist=date(2026, 1, 2),
+        schema_version=SCHEMA_VERSION,
+        entries=[
+            make_entry(
+                domain="fundamentals",
+                dataset="filings",
+                exchange=None,
+                asset_class=None,
+                timeframe=None,
+                object_sha="b" * 64,
+            )
+        ],
+        parent=first,
+        entries_replace_only=True,
+    )
+    assert store.resolve_partition("disclosures", "delivery") == []
+    assert [e.object_sha for e in store.resolve_partition("fundamentals", "filings")] == ["b" * 64]
+    tree_data = json.loads((tmp_path / "trees" / f"{second.tree_hash}.json").read_text())
+    assert len(tree_data) == 1
+    store.close()
+
+
+def test_golden_snapshot_tree_json_vector(tmp_path: Path) -> None:
+    store = ManifestStore(tmp_path)
+    e1 = make_entry(
+        domain="market",
+        dataset="bars",
+        exchange="NSE",
+        asset_class="EQ",
+        timeframe="1d",
+        time_bucket="year=2025",
+        object_sha="1" * 64,
+        min_ts=utc(2025, 1, 1),
+        max_ts=utc(2025, 12, 31),
+        row_count=250,
+    )
+    e2 = make_entry(
+        domain="fundamentals",
+        dataset="filings",
+        exchange=None,
+        asset_class=None,
+        timeframe=None,
+        time_bucket="year=2026",
+        object_sha="2" * 64,
+        min_ts=utc(2026, 1, 1),
+        max_ts=utc(2026, 1, 5),
+        row_count=12,
+    )
+    c1 = store.commit(
+        "bars 2025",
+        as_of_ist=date(2025, 12, 31),
+        schema_version=SCHEMA_VERSION,
+        entries=[e1],
+    )
+    c2 = store.commit(
+        "filings 2026",
+        as_of_ist=date(2026, 1, 5),
+        schema_version=SCHEMA_VERSION,
+        entries=[e2],
+        parent=c1,
+    )
+    expected_tree = [
+        {
+            "asset_class": "EQ",
+            "dataset": "bars",
+            "domain": "market",
+            "exchange": "NSE",
+            "max_ts": "2025-12-31T00:00:00+00:00",
+            "min_ts": "2025-01-01T00:00:00+00:00",
+            "object_sha": "1" * 64,
+            "row_count": 250,
+            "sort_key": "(instrument_uid, ts)",
+            "time_bucket": "year=2025",
+            "timeframe": "1d",
+        },
+        {
+            "asset_class": None,
+            "dataset": "filings",
+            "domain": "fundamentals",
+            "exchange": None,
+            "max_ts": "2026-01-05T00:00:00+00:00",
+            "min_ts": "2026-01-01T00:00:00+00:00",
+            "object_sha": "2" * 64,
+            "row_count": 12,
+            "sort_key": "(instrument_uid, ts)",
+            "time_bucket": "year=2026",
+            "timeframe": None,
+        },
+    ]
+    expected_canonical = json.dumps(expected_tree, sort_keys=True, separators=(",", ":"))
+    expected_hash = hashlib.sha256(expected_canonical.encode("utf-8")).hexdigest()
+    assert c2.tree_hash == expected_hash
+    assert (tmp_path / "trees" / f"{c2.tree_hash}.json").read_text().strip() == expected_canonical
+    store.close()
+
+
+def test_hypothesis_snapshot_merge_idempotence_and_replacement(tmp_path: Path) -> None:
+    from hypothesis import given, settings
+    from hypothesis import strategies as st
+
+    datasets = ["bars", "delivery", "filings", "news", "block_deals"]
+    entry_strat = st.tuples(
+        st.sampled_from(datasets),
+        st.sampled_from(["year=2025", "year=2026"]),
+        st.integers(min_value=1, max_value=20),
+    )
+
+    @given(
+        batch1=st.lists(entry_strat, min_size=1, max_size=5),
+        batch2=st.lists(entry_strat, min_size=1, max_size=5),
+    )
+    @settings(max_examples=20)
+    def check(batch1: list[tuple[str, str, int]], batch2: list[tuple[str, str, int]]) -> None:
+        sub = tmp_path / hashlib.sha256(repr((batch1, batch2)).encode()).hexdigest()[:12]
+        store = ManifestStore(sub)
+        try:
+
+            def build_entries(batch: list[tuple[str, str, int]], tag: str) -> list[ManifestEntry]:
+                dedup: dict[tuple[str, str], ManifestEntry] = {}
+                for ds, bucket, day in batch:
+                    sha = hashlib.sha256(f"{ds}:{bucket}:{day}:{tag}".encode()).hexdigest()
+                    dedup[(ds, bucket)] = make_entry(
+                        domain="disclosures"
+                        if ds in ("delivery", "news", "block_deals")
+                        else "market",
+                        dataset=ds,
+                        exchange=None,
+                        asset_class=None,
+                        timeframe=None,
+                        time_bucket=bucket,
+                        object_sha=sha,
+                        min_ts=utc(2026, 1, day),
+                        max_ts=utc(2026, 1, day + 1),
+                    )
+                return sorted(dedup.values(), key=lambda e: (e.min_ts, e.max_ts))
+
+            e1 = build_entries(batch1, "v1")
+            c1 = store.commit(
+                "b1", as_of_ist=date(2026, 1, 20), schema_version=SCHEMA_VERSION, entries=e1
+            )
+            e2 = build_entries(batch2, "v2")
+            c2 = store.commit(
+                "b2",
+                as_of_ist=date(2026, 1, 21),
+                schema_version=SCHEMA_VERSION,
+                entries=e2,
+                parent=c1,
+            )
+            # Re-committing e2 onto c2 must keep the exact same tree_hash (idempotence).
+            c3 = store.commit(
+                "b2-idem",
+                as_of_ist=date(2026, 1, 21),
+                schema_version=SCHEMA_VERSION,
+                entries=e2,
+                parent=c2,
+            )
+            assert c3.tree_hash == c2.tree_hash
+
+            expected_keys = {(e.domain, e.dataset, e.time_bucket): e.object_sha for e in e1}
+            for e in e2:
+                expected_keys[(e.domain, e.dataset, e.time_bucket)] = e.object_sha
+            actual_tree = store.entries_for_commit(c2.commit_sha)
+            assert {
+                (e.domain, e.dataset, e.time_bucket): e.object_sha for e in actual_tree
+            } == expected_keys
+        finally:
+            store.close()
+
+    check()
