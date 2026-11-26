@@ -373,8 +373,8 @@ class LakehouseBridgeExporter:
 
     def __init__(
         self,
-        filings: FilingsRepository,
-        corporate_actions: CorporateActionsRepository,
+        filings: FilingsRepository | None = None,
+        corporate_actions: CorporateActionsRepository | None = None,
         block_deals: BlockDealsRepository | None = None,
         news: NewsRepository | None = None,
         institutional_flows: InstitutionalFlowRepository | None = None,
@@ -495,6 +495,8 @@ class LakehouseBridgeExporter:
 
         Returns the number of files written. Existing files are overwritten.
         """
+        if self._filings is None:
+            return 0
         root = Path(root)
         by_date: dict[date, list[Filing]] = {}
         for filing in self._filings.query():
@@ -525,6 +527,8 @@ class LakehouseBridgeExporter:
 
         Returns the number of files written. Existing files are overwritten.
         """
+        if self._corporate_actions is None:
+            return 0
         root = Path(root)
         records = [to_record(action) for action in self._corporate_actions.list()]
         by_date: dict[date, list[CorporateActionRecord]] = {}

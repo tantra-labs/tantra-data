@@ -152,7 +152,7 @@ def fetch_symbol_profiles(symbols: list[str]) -> list[ProfileRow]:
     Raises :class:`ImportError` when ``yfinance`` is not installed. Unpopulated
     fields are left as ``None``.
     """
-    if not _yfinance_available:
+    if not _yfinance_available or yf is None:
         raise ImportError(
             "yfinance is not installed; install it with `pip install yfinance` "
             "to fetch symbol profiles from Yahoo Finance"

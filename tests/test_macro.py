@@ -41,9 +41,9 @@ def test_macro_store_unknown_series_returns_empty(macro_store):
 
 
 def test_macro_store_upsert_is_idempotent(macro_store):
-    obs = MacroObservation("RBI_REPO_RATE", date(2024, 1, 1), "6.50", "rbi")
+    obs = MacroObservation("RBI_REPO_RATE", date(2024, 1, 1), Decimal("6.50"), "rbi")
     macro_store.upsert(obs)
-    macro_store.upsert(MacroObservation("RBI_REPO_RATE", date(2024, 1, 1), "7.00", "rbi"))
+    macro_store.upsert(MacroObservation("RBI_REPO_RATE", date(2024, 1, 1), Decimal("7.00"), "rbi"))
     rows = macro_store.query("RBI_REPO_RATE")
     assert len(rows) == 1
     assert rows[0].value == Decimal("7.00")
@@ -103,7 +103,7 @@ def test_rows_to_observations_round_trip():
 
 
 def test_macro_values_are_decimal_never_float(macro_store):
-    macro_store.upsert(MacroObservation("RBI_REPO_RATE", date(2024, 1, 1), "6.50", "rbi"))
+    macro_store.upsert(MacroObservation("RBI_REPO_RATE", date(2024, 1, 1), Decimal("6.50"), "rbi"))
     reader = PythonMacroReader(macro_store)
     frame = reader.get_series("RBI_REPO_RATE")
     assert frame["value"].dtype == pl.Decimal(18, 4)

@@ -439,7 +439,7 @@ def fetch_fundamentals(symbol: str, as_of: date | None = None) -> ParsedFundamen
     row and the ``as_of_date`` of the ratios snapshot. Raises
     :class:`ImportError` when ``yfinance`` is not installed.
     """
-    if not _YFINANCE_AVAILABLE:
+    if not _YFINANCE_AVAILABLE or yf is None:
         raise ImportError(
             "yfinance is not installed; install it with `pip install yfinance` "
             "to fetch company fundamentals from Yahoo Finance"

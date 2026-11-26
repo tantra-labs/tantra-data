@@ -17,7 +17,7 @@ def test_look_ahead_guard_rejects_early_filing() -> None:
             period_end_date=date(2024, 3, 31),
             filing_date=date(2024, 1, 15),
             metric="net_profit",
-            value="100.00",
+            value=Decimal("100.00"),
         )
 
 
@@ -27,7 +27,7 @@ def test_record_coerces_value_to_decimal(fundamentals_store) -> None:
         period_end_date=date(2024, 3, 31),
         filing_date=date(2024, 4, 25),
         metric="net_profit",
-        value="72100.00",
+        value=Decimal("72100.00"),
     )
     assert record.value == Decimal("72100.00")
 

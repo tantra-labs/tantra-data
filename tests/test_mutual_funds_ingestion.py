@@ -172,7 +172,7 @@ def test_domain_validation_rejects_bad_values() -> None:
         MutualFundNav(
             scheme_code="135762",
             nav_date=date(2026, 11, 13),
-            nav="-1",
+            nav=Decimal("-1"),
             repurchase_price=None,
             sale_price=None,
         )

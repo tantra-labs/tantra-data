@@ -75,8 +75,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    scripcodes = args.scripcode or list(_DEFAULT_SCRIPCODES)
-    symbols = args.symbol or list(_DEFAULT_SYMBOLS)
+    scripcodes: list[str] = [str(s) for s in (args.scripcode or _DEFAULT_SCRIPCODES)]
+    symbols: list[str] = [str(s) for s in (args.symbol or _DEFAULT_SYMBOLS)]
     datasets = _DATASETS if args.dataset == "all" else (args.dataset,)
 
     store = DuckDbShareholdingStore(args.root)

@@ -662,13 +662,17 @@ class DuckDbMutualFundsStore:
         coverage_pct = (Decimal(100) * covered_weight / total_weight).quantize(_QUANT)
 
         def weighted(field: str) -> Decimal | None:
-            rows = [m for m in matched if m.get(field) is not None]
-            if not rows:
+            pairs: list[tuple[Decimal, Decimal]] = []
+            for m in matched:
+                metric = _decimal(m.get(field), field)
+                if metric is not None:
+                    weight: Decimal = m["weight_pct"]
+                    pairs.append((weight, metric))
+            if not pairs:
                 return None
-            weight_sum = sum(m["weight_pct"] for m in rows)
-            return (
-                sum(m["weight_pct"] * _decimal(m[field], field) for m in rows) / weight_sum
-            ).quantize(_QUANT)
+            weight_sum = sum((w for w, _ in pairs), Decimal("0"))
+            total_weighted = sum((w * val for w, val in pairs), Decimal("0"))
+            return (total_weighted / weight_sum).quantize(_QUANT)
 
         banded = [m for m in matched if self._cap_band(m.get("market_cap_cr")) is not None]
         band_total = sum(m["weight_pct"] for m in banded) or Decimal("1")

@@ -29,6 +29,7 @@ import pyarrow.parquet as pq
 
 from tantra_data.adapters.cas_store import read_cas_object
 from tantra_data.adapters.manifest_store import ManifestStore
+from tantra_data.domain.lakehouse import CommitRecord
 from tantra_data.ports.repositories import BAR_SCHEMA
 
 _PRICE_FIELDS = ("open", "high", "low", "close")
@@ -160,6 +161,30 @@ class ParquetCatalog:
             return self._finalize(lf, start, end)
         except Exception:
             return pl.DataFrame(schema=BAR_SCHEMA)
+
+    def resolve_ref(self, ref: str) -> CommitRecord | None:
+        """Resolve ``ref`` (branch or tag name) via ``{root}/catalog.duckdb`` if present."""
+        if not (self.root / "catalog.duckdb").exists():
+            return None
+        with ManifestStore(self.root) as store:
+            return store.resolve_ref(ref)
+
+    def commit(self, summary: str, *, as_of_ist: date, schema_version: int) -> CommitRecord:
+        """Create a snapshot commit in ``{root}/catalog.duckdb`` forwarding ``main``."""
+        with ManifestStore(self.root) as store:
+            parent = store.resolve_ref("main")
+            return store.commit(
+                summary,
+                as_of_ist=as_of_ist,
+                schema_version=schema_version,
+                entries=[],
+                parent=parent,
+            )
+
+    def tag(self, tag: str, ref: str = "main") -> None:
+        """Pin ``tag`` to the commit ``ref`` resolves to in ``{root}/catalog.duckdb``."""
+        with ManifestStore(self.root) as store:
+            store.tag(tag, ref=ref)
 
     def _read_bars_v3(
         self,

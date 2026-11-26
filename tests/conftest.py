@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from datetime import UTC, date, datetime, time
+from decimal import Decimal
+from pathlib import Path
 
 import polars as pl
 import pytest
@@ -35,7 +37,7 @@ def corporate_actions_store() -> DuckDbCorporateActionsStore:
 
 
 @pytest.fixture
-def catalog(tmp_path) -> ParquetCatalog:
+def catalog(tmp_path: Path) -> ParquetCatalog:
     return ParquetCatalog(tmp_path / "catalog")
 
 
@@ -71,24 +73,29 @@ def sample_fundamentals() -> list[FundamentalRecord]:
             period_end_date=date(2023, 12, 31),
             filing_date=date(2024, 1, 20),
             metric="net_profit",
-            value="68000.00",
+            value=Decimal("68000.00"),
         ),
         FundamentalRecord(
             instrument="NSE:RELIANCE-EQ",
             period_end_date=date(2024, 3, 31),
             filing_date=date(2024, 4, 25),
             metric="net_profit",
-            value="72100.00",
+            value=Decimal("72100.00"),
         ),
     ]
 
 
 @pytest.fixture
 def sample_actions() -> list[object]:
-    return [
+    actions: list[object] = [
         Split(instrument="NSE:RELIANCE-EQ", ex_date=date(2024, 1, 2), old_shares=1, new_shares=2),
-        Dividend(instrument="NSE:RELIANCE-EQ", ex_date=date(2024, 1, 3), per_share="10.00"),
+        Dividend(
+            instrument="NSE:RELIANCE-EQ",
+            ex_date=date(2024, 1, 3),
+            per_share=Decimal("10.00"),
+        ),
     ]
+    return actions
 
 
 @pytest.fixture
@@ -107,19 +114,19 @@ def sample_macro_rows() -> list[MacroObservation]:
         MacroObservation(
             series_id="RBI_REPO_RATE",
             as_of_date=date(2024, 1, 1),
-            value="6.50",
+            value=Decimal("6.50"),
             source="rbi",
         ),
         MacroObservation(
             series_id="RBI_REPO_RATE",
             as_of_date=date(2024, 2, 1),
-            value="6.75",
+            value=Decimal("6.75"),
             source="rbi",
         ),
         MacroObservation(
             series_id="WPI_INFLATION",
             as_of_date=date(2024, 1, 15),
-            value="0.70",
+            value=Decimal("0.70"),
             source="eaindustry.nic.in",
         ),
     ]

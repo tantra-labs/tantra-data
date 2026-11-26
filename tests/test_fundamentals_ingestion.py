@@ -199,7 +199,7 @@ def test_look_ahead_guard_rejects_early_filing() -> None:
             period_end_date=date(2026, 3, 31),
             filing_date=date(2026, 1, 1),
             line_item="total_revenue",
-            value="10572190000000.0",
+            value=Decimal("10572190000000.0"),
         )
 
 

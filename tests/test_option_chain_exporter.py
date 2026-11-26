@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
+from typing import Any
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -54,16 +55,17 @@ def _exporter(store: DuckDbOptionChainStore) -> LakehouseBridgeExporter:
 
 
 def _chain_from_projection(
-    rows: list[dict[str, object]],
+    rows: list[dict[str, Any]],
     reference_ts: datetime,
-) -> list[dict[str, object]]:
+) -> list[dict[str, Any]]:
     """Replicate ``chain_as_of`` semantics over the projection file rows."""
-    latest: dict[tuple[object, object], dict[str, object]] = {}
+    latest: dict[tuple[Decimal, str], dict[str, Any]] = {}
     for row in rows:
-        if row["as_of"] > reference_ts:
+        as_of: datetime = row["as_of"]
+        if as_of > reference_ts:
             continue
-        key = (row["strike"], row["option_type"])
-        if key not in latest or row["as_of"] > latest[key]["as_of"]:
+        key = (Decimal(str(row["strike"])), str(row["option_type"]))
+        if key not in latest or as_of > latest[key]["as_of"]:
             latest[key] = row
     return sorted(latest.values(), key=lambda row: (row["strike"], row["option_type"]))
 

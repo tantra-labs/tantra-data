@@ -41,15 +41,17 @@ def test_bonus_1_1_halves_price() -> None:
 
 
 def test_dividend_subtracts_per_share() -> None:
-    dividend = Dividend("NSE:RELIANCE-EQ", date(2024, 1, 3), per_share="10.00")
+    dividend = Dividend("NSE:RELIANCE-EQ", date(2024, 1, 3), per_share=D("10.00"))
     assert dividend.price_adjustment == D("10.00")
     assert dividend.apply(D("260.00")) == D("250.00")
     with pytest.raises(ValueError):
-        Dividend("X", date(2024, 1, 3), per_share="-1.00")
+        Dividend("X", date(2024, 1, 3), per_share=D("-1.00"))
 
 
 def test_rights_theoretical_price() -> None:
-    rights = Rights("NSE:XYZ", date(2024, 5, 1), old_shares=4, new_shares=1, issue_price="300.00")
+    rights = Rights(
+        "NSE:XYZ", date(2024, 5, 1), old_shares=4, new_shares=1, issue_price=D("300.00")
+    )
     # (500*4 + 300*1) / 5
     assert rights.apply(D("500.00")) == D("460.00")
 
@@ -58,7 +60,7 @@ def test_record_roundtrip_preserves_exact_decimals() -> None:
     for action in [
         Split("NSE:A", date(2024, 1, 2), 1, 5),
         Bonus("NSE:B", date(2024, 2, 1), 1, 2),
-        Dividend("NSE:C", date(2024, 3, 1), per_share="10.50"),
-        Rights("NSE:D", date(2024, 4, 1), 4, 1, issue_price="300.00"),
+        Dividend("NSE:C", date(2024, 3, 1), per_share=D("10.50")),
+        Rights("NSE:D", date(2024, 4, 1), 4, 1, issue_price=D("300.00")),
     ]:
         assert from_record(to_record(action)) == action

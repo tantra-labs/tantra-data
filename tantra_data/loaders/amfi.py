@@ -25,7 +25,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from decimal import Decimal
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from tantra.bar import Bar
@@ -72,7 +72,7 @@ class NavPoint:
     """A single NAV observation (date + value)."""
 
     date: dt.date
-    nav: float
+    nav: Decimal | float
     scheme_name: str = ""
 
 
@@ -179,9 +179,9 @@ class AmfiNavLoader:
 
     def __init__(self, data_dir: Path | None = None) -> None:
         self._data_dir = data_dir
-        self._store = None
+        self._store: Any = None
 
-    def _resolved_store(self):
+    def _resolved_store(self) -> Any:
         """The wheel ``ParquetBarStore`` at ``data_dir`` (or the resolved data root)."""
         if self._store is None:
             try:

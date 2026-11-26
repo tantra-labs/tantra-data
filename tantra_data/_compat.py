@@ -9,10 +9,13 @@ used so the package stays fully offline-testable.
 from __future__ import annotations
 
 from decimal import Decimal
+from typing import Any
 
+TantraDecimal: Any
 try:  # pragma: no cover - exercised only when the native wheel is absent
-    from tantra import Decimal as TantraDecimal
+    from tantra import Decimal as _TantraDecimal
 
+    TantraDecimal = _TantraDecimal
     VYAAPAAR_AVAILABLE = True
 except ImportError:  # pragma: no cover
     TantraDecimal = Decimal

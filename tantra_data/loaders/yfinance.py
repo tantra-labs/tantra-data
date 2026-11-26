@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import datetime as dt
 from decimal import Decimal
+from typing import Any
 
 from tantra_data.providers.profile import yfinance_available
 
@@ -41,7 +42,9 @@ class YFinanceProvider:
 
     name = "yfinance"
 
-    def fetch(self, inst, timeframe: str, interval, progress_callback=None) -> list:
+    def fetch(
+        self, inst: Any, timeframe: str, interval: Any, progress_callback: Any = None
+    ) -> list[Any]:
         """Daily ``Bar`` objects for ``inst.symbol`` covering ``interval``.
 
         ``inst`` is a wheel :class:`tantra.instrument.InstrumentId` and ``interval`` a wheel
@@ -70,7 +73,7 @@ class YFinanceProvider:
         )
         if data is None or data.empty:
             return []
-        bars: list = []
+        bars: list[Any] = []
         for ts, row in data.iterrows():
             if not isinstance(ts, dt.datetime):
                 raise TypeError(f"Expected datetime index from yfinance, got {type(ts).__name__}")

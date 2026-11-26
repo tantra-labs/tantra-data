@@ -33,7 +33,6 @@ __all__ = [
     "NonDecimalBars",
     "PinnedBars",
     "PythonMacroReader",
-    "ReferenceExporter",
     "TantraDataService",
     "UnknownRef",
     "VectorizedScreener",
